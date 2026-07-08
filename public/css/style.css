@@ -197,6 +197,7 @@ canvas {
   display: inline-block;
   backdrop-filter: blur(4px);
   margin-bottom: 10px;
+  pointer-events: auto; /* 버튼 클릭을 위해 이벤트 활성화 */
 }
 
 .timer-text {
