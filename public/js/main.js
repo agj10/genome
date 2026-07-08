@@ -1,115 +1,118 @@
+// ────────────────────────────────────
+// main.js — 2.5D 렌더링 엔진
+// ────────────────────────────────────
 const canvas = document.getElementById('game-canvas');
-const ctx = canvas.getContext('2d');
+const ctx    = canvas.getContext('2d');
 
 let isGameRunning = false;
-let lastTime = 0;
-let localPlayer = null;
-let paintTool = null;
+let lastTime      = 0;
+let localPlayer   = null;
+let paintTool     = null;
+let currentRoomId = null;
 
-// 마우스/터치 상태
+// 맵 설정 (월드 좌표 기준)
+const MAP = { width: 2000, height: 2000 };
+
+// 입력
+const input   = { keys: {} };
 const pointer = { x: 0, y: 0, isDown: false };
 
-// 입력 상태
-const input = {
-  keys: {}
-};
-
 window.addEventListener('keydown', (e) => { input.keys[e.key] = true; });
-window.addEventListener('keyup', (e) => { input.keys[e.key] = false; });
+window.addEventListener('keyup',   (e) => { input.keys[e.key] = false; });
 window.addEventListener('resize', resizeCanvas);
 
-// 포인터 이벤트
+// ── 포인터 이벤트 ──
 canvas.addEventListener('mousedown', (e) => {
   pointer.isDown = true;
   pointer.x = e.clientX;
   pointer.y = e.clientY;
-  handlePointerDown();
+  onPointerDown();
 });
 canvas.addEventListener('mousemove', (e) => {
   pointer.x = e.clientX;
   pointer.y = e.clientY;
-  handlePointerMove();
+  onPointerMove();
 });
-canvas.addEventListener('mouseup', () => {
-  pointer.isDown = false;
-  handlePointerUp();
-});
-canvas.addEventListener('mouseleave', () => {
-  pointer.isDown = false;
-  handlePointerUp();
-});
+canvas.addEventListener('mouseup',    () => { pointer.isDown = false; onPointerUp(); });
+canvas.addEventListener('mouseleave', () => { pointer.isDown = false; onPointerUp(); });
+
+// ── 줌 ──
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  camera.handleWheel(e.deltaY);
+}, { passive: false });
 
 function resizeCanvas() {
-  canvas.width = window.innerWidth;
+  canvas.width  = window.innerWidth;
   canvas.height = window.innerHeight;
 }
 
-let currentRoomId = null;
+// ────────────────────────────────────
+// 방 / 게임 시작
+// ────────────────────────────────────
+function generateRoomCode() {
+  const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let r = '';
+  for (let i = 0; i < 6; i++) r += c[Math.floor(Math.random() * c.length)];
+  return r;
+}
 
 function joinRoom(roomId) {
   if (!roomId) return;
   roomId = roomId.toUpperCase();
   currentRoomId = roomId;
 
-  // URL 변경 (SPA)
   if (window.location.pathname !== `/rooms/${roomId}`) {
     history.pushState(null, '', `/rooms/${roomId}`);
   }
 
   document.getElementById('menu-screen').classList.remove('active');
   document.getElementById('game-screen').classList.add('active');
-
   startGame();
 }
 
 function startGame() {
-  if (!currentToken) return;
-  
+  if (!currentToken || isGameRunning) return;
+
   isGameRunning = true;
   resizeCanvas();
   connectSocket();
-  
-  // 소켓 연결 완료 후 room 입장
-  if (socket && socket.connected) {
-    socket.emit('joinRoom', currentRoomId);
-  } else {
-    // connectSocket에서 연결 이벤트 후 가입하도록 설정
-    socket.on('connect', () => {
-      socket.emit('joinRoom', currentRoomId);
-    });
-  }
-  
-  // 임시 초기 위치 (추후 서버에서 받아옴)
-  localPlayer = new LocalPlayer(400, 300);
-  paintTool = new PaintTool(40); // 플레이어 텍스처 크기 40x40
-  
+
+  // 소켓 연결 후 방 참가
+  const doJoin = () => socket.emit('joinRoom', currentRoomId);
+  if (socket && socket.connected) doJoin();
+  else socket.on('connect', doJoin);
+
+  // 맵 중앙에서 시작
+  localPlayer = new LocalPlayer(MAP.width / 2, MAP.height / 2);
+  paintTool   = new PaintTool(64);   // 텍스처 64x64
+
+  // 카메라 즉시 플레이어 위치로 스냅
+  camera.x = camera.targetX = localPlayer.x;
+  camera.y = camera.targetY = localPlayer.y;
+
   lastTime = performance.now();
   requestAnimationFrame(gameLoop);
 }
 
-// 방 코드 생성기 (6자리)
-function generateRoomCode() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < 6; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+function checkUrlAndJoin() {
+  const p = window.location.pathname;
+  if (p.startsWith('/rooms/')) {
+    const id = p.split('/')[2];
+    if (id) joinRoom(id);
   }
-  return result;
 }
 
-// 메뉴 버튼 이벤트
+// ── 메뉴 버튼 ──
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('quick-start-btn').addEventListener('click', () => {
-    joinRoom(generateRoomCode());
-  });
+  document.getElementById('quick-start-btn').addEventListener('click', () => joinRoom(generateRoomCode()));
 
   document.getElementById('join-room-btn').addEventListener('click', () => {
     const code = document.getElementById('room-code-input').value.trim();
     if (code) joinRoom(code);
     else alert('방 코드를 입력해주세요.');
   });
-  
-  // 방장 강제 시작 버튼
+
   document.getElementById('host-start-btn').addEventListener('click', () => {
     if (socket && socket.connected && gameStateManager.status === 'lobby') {
       socket.emit('startGame');
@@ -117,21 +120,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// URL 직접 접속 시 방 자동 진입 체크 (auth.js의 initAuth 성공 후 호출되도록)
-function checkUrlAndJoin() {
-  const path = window.location.pathname;
-  if (path.startsWith('/rooms/')) {
-    const roomId = path.split('/')[2];
-    if (roomId) {
-      joinRoom(roomId);
-    }
-  }
-}
-
+// ────────────────────────────────────
+// 게임 루프
+// ────────────────────────────────────
 function gameLoop(time) {
   if (!isGameRunning) return;
-
-  const dt = (time - lastTime) / 1000;
+  const dt = Math.min((time - lastTime) / 1000, 0.05); // cap delta
   lastTime = time;
 
   update(dt);
@@ -142,132 +136,250 @@ function gameLoop(time) {
 
 function update(dt) {
   if (localPlayer) {
-    // 사냥 단계에서 숨는 자는 이동 중 페인팅 불가 로직 등 추가 가능
     localPlayer.update(dt, input);
+    camera.follow(localPlayer.x, localPlayer.y);
   }
+  camera.update(dt);
 }
 
-// 렌더링에 사용할 임시 이미지 캐시 (성능 최적화)
+// ────────────────────────────────────
+// 렌더링
+// ────────────────────────────────────
 const textureCache = {};
+const SPRITE_R = 26;  // 스프라이트 반지름 (월드 단위)
 
 function draw() {
-  // 배경 클리어
-  ctx.fillStyle = '#cce0ff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const W = canvas.width;
+  const H = canvas.height;
 
+  // 배경
+  ctx.fillStyle = '#b8d4e8';
+  ctx.fillRect(0, 0, W, H);
+
+  drawGround(W, H);
+  drawPlayers(W, H);
+}
+
+// ── 바닥 그리드 (2.5D 원근감) ──
+function drawGround(W, H) {
+  const gridSize = 100; // 월드 단위 간격
+
+  // 화면에 보이는 월드 범위 계산 (약간 넉넉하게)
+  const tl = camera.screenToWorld(0, 0, W, H);
+  const br = camera.screenToWorld(W, H, W, H);
+
+  const startX = Math.floor(tl.x / gridSize) * gridSize;
+  const endX   = Math.ceil(br.x / gridSize) * gridSize;
+  const startY = Math.floor(tl.y / gridSize) * gridSize;
+  const endY   = Math.ceil(br.y / gridSize) * gridSize;
+
+  ctx.strokeStyle = 'rgba(100, 140, 170, 0.25)';
+  ctx.lineWidth   = 1;
+
+  // 세로선
+  for (let x = startX; x <= endX; x += gridSize) {
+    const top = camera.worldToScreen(x, startY, 0, W, H);
+    const bot = camera.worldToScreen(x, endY,   0, W, H);
+    ctx.beginPath();
+    ctx.moveTo(top.x, top.y);
+    ctx.lineTo(bot.x, bot.y);
+    ctx.stroke();
+  }
+  // 가로선
+  for (let y = startY; y <= endY; y += gridSize) {
+    const lft = camera.worldToScreen(startX, y, 0, W, H);
+    const rgt = camera.worldToScreen(endX,   y, 0, W, H);
+    ctx.beginPath();
+    ctx.moveTo(lft.x, lft.y);
+    ctx.lineTo(rgt.x, rgt.y);
+    ctx.stroke();
+  }
+
+  // 맵 경계 사각형
+  const corners = [
+    camera.worldToScreen(0, 0, 0, W, H),
+    camera.worldToScreen(MAP.width, 0, 0, W, H),
+    camera.worldToScreen(MAP.width, MAP.height, 0, W, H),
+    camera.worldToScreen(0, MAP.height, 0, W, H),
+  ];
+  ctx.strokeStyle = 'rgba(80, 120, 160, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(corners[0].x, corners[0].y);
+  for (let i = 1; i < 4; i++) ctx.lineTo(corners[i].x, corners[i].y);
+  ctx.closePath();
+  ctx.stroke();
+}
+
+// ── 플레이어 렌더링 ──
+function drawPlayers(W, H) {
   const myId = socket ? socket.id : null;
-  const me = myId ? networkPlayers[myId] : null;
+  const me   = myId ? networkPlayers[myId] : null;
 
+  // HP UI 업데이트
   if (me) {
-    gameStateManager.isSeeker = (me.role === 'seeker');
-    // HP 업데이트
-    if (gameStateManager.isSeeker) {
-      document.getElementById('hp-box').style.display = 'inline-flex';
+    gameStateManager.isSeeker = me.role === 'seeker';
+    const hpBox = document.getElementById('hp-box');
+    if (me.role === 'seeker') {
+      hpBox.style.display = 'inline-flex';
       const fill = document.getElementById('hp-bar-fill');
       fill.style.width = Math.max(0, me.hp) + '%';
       fill.style.backgroundColor = me.hp > 30 ? '#48bb78' : '#e53e3e';
     } else {
-      document.getElementById('hp-box').style.display = 'none';
+      hpBox.style.display = 'none';
     }
   }
 
-  // 서버에서 받은 모든 플레이어 그리기
-  for (const id in networkPlayers) {
+  // Y-Sorting: y좌표가 작은(뒤쪽) 플레이어를 먼저 그린다
+  const sortedIds = Object.keys(networkPlayers).sort((a, b) => {
+    const ay = a === myId && localPlayer ? localPlayer.y : networkPlayers[a].y;
+    const by = b === myId && localPlayer ? localPlayer.y : networkPlayers[b].y;
+    return ay - by;
+  });
+
+  for (const id of sortedIds) {
     const p = networkPlayers[id];
-    
-    // 로컬 플레이어는 클라이언트 예측을 위해 localPlayer 객체 사용
-    let drawX = p.x;
-    let drawY = p.y;
-    
+
+    // 월드 좌표 결정 (자기 자신은 localPlayer 사용)
+    let wx = p.x;
+    let wy = p.y;
     if (id === myId && localPlayer) {
-      drawX = localPlayer.x;
-      drawY = localPlayer.y;
+      wx = localPlayer.x;
+      wy = localPlayer.y;
     }
 
-    // 그림자
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    const screen = camera.worldToScreen(wx, wy, 0, W, H);
+    const r = SPRITE_R * camera.scale;
+
+    // 화면 밖이면 스킵
+    if (screen.x < -r * 2 || screen.x > W + r * 2 || screen.y < -r * 2 || screen.y > H + r * 2) continue;
+
+    // ── 그림자 (타원) ──
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
     ctx.beginPath();
-    ctx.ellipse(drawX, drawY + 15, 12, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(screen.x, screen.y + r * 0.55, r * 0.7, r * 0.25, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 캐릭터 텍스처 (자신의 것은 실시간 오프스크린 캔버스, 남의 것은 textureData 사용)
+    // ── 캐릭터 스프라이트 ──
     if (id === myId && paintTool) {
-      ctx.drawImage(paintTool.canvas, drawX - paintTool.size/2, drawY - paintTool.size/2);
+      // 자신: 실시간 오프스크린 캔버스
+      const sz = SPRITE_R * 2 * camera.scale;
+      ctx.drawImage(paintTool.canvas, screen.x - sz / 2, screen.y - sz, sz, sz);
     } else if (p.textureData) {
-      if (!textureCache[id] || textureCache[id].src !== p.textureData) {
+      // 타인: 서버에서 받은 텍스처
+      if (!textureCache[id] || textureCache[id]._src !== p.textureData) {
         const img = new Image();
         img.src = p.textureData;
+        img._src = p.textureData;
         textureCache[id] = img;
       }
-      ctx.drawImage(textureCache[id], drawX - 20, drawY - 20, 40, 40);
+      const sz = SPRITE_R * 2 * camera.scale;
+      ctx.drawImage(textureCache[id], screen.x - sz / 2, screen.y - sz, sz, sz);
     } else {
       // 기본 플레이스홀더
-      ctx.fillStyle = p.role === 'seeker' ? '#fc8181' : '#ffffff';
+      const bodyColor = p.role === 'seeker' ? '#fc8181' : '#e8ecf1';
+      // 몸통
+      ctx.fillStyle = bodyColor;
       ctx.beginPath();
-      ctx.arc(drawX, drawY, 20, 0, Math.PI * 2);
+      ctx.arc(screen.x, screen.y - r * 0.5, r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#556';
+      ctx.lineWidth = 2 * camera.scale;
       ctx.stroke();
+      // 죽었으면 X 표시
+      if (!p.isAlive) {
+        ctx.strokeStyle = '#c00';
+        ctx.lineWidth = 3 * camera.scale;
+        const cr = r * 0.35;
+        ctx.beginPath();
+        ctx.moveTo(screen.x - cr, screen.y - r * 0.5 - cr);
+        ctx.lineTo(screen.x + cr, screen.y - r * 0.5 + cr);
+        ctx.moveTo(screen.x + cr, screen.y - r * 0.5 - cr);
+        ctx.lineTo(screen.x - cr, screen.y - r * 0.5 + cr);
+        ctx.stroke();
+      }
     }
 
-    // 닉네임 텍스트 (사냥 중 숨는 자는 다른 숨는 자 이름만 보이거나, 결과 창에서만 보이게 처리 가능)
-    ctx.fillStyle = '#333';
-    ctx.font = '14px Inter';
-    ctx.textAlign = 'center';
-    
-    // 술래는 사냥 중일 때 숨는 자의 닉네임이 안 보이게 해야 함
-    const isHunt = gameStateManager.status === 'hunt';
-    const hideName = isHunt && me && me.role === 'seeker' && p.role === 'hider';
-    
-    if (!hideName || p.isAlive === false) {
-      ctx.fillText(p.nickname + (p.isAlive ? '' : ' 💀'), drawX, drawY - 25);
+    // ── 닉네임 ──
+    const isHunt  = gameStateManager.status === 'hunt';
+    const hideName = isHunt && me && me.role === 'seeker' && p.role === 'hider' && p.isAlive;
+
+    if (!hideName) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.font = `bold ${Math.round(13 * camera.scale)}px Inter, sans-serif`;
+      ctx.textAlign = 'center';
+      const label = p.nickname + (p.isAlive ? '' : ' 💀');
+      ctx.fillText(label, screen.x, screen.y - r * 1.7);
     }
   }
 }
 
-// 상호작용
-function handlePointerDown() {
+// ────────────────────────────────────
+// 포인터 → 드로잉 / 태그
+// ────────────────────────────────────
+function onPointerDown() {
   if (!socket || !localPlayer) return;
-  const myId = socket.id;
-  const me = networkPlayers[myId];
+  const me = networkPlayers[socket.id];
   if (!me) return;
 
   if (gameStateManager.status === 'prep' && me.role === 'hider') {
-    paintTool.handlePointerDown(pointer.x, pointer.y, localPlayer.x, localPlayer.y);
+    // 화면 좌표 → 텍스처 로컬 좌표로 변환
+    const local = screenToTextureLocal(pointer.x, pointer.y);
+    if (local) paintTool.beginStroke(local.x, local.y);
   } else if (gameStateManager.status === 'hunt' && me.role === 'seeker') {
-    // 술래 태그 시도
     attemptTag(pointer.x, pointer.y);
   }
 }
 
-function handlePointerMove() {
-  if (!socket || !localPlayer) return;
-  const myId = socket.id;
-  const me = networkPlayers[myId];
-  
-  if (gameStateManager.status === 'prep' && me.role === 'hider' && pointer.isDown) {
-    paintTool.handlePointerMove(pointer.x, pointer.y, localPlayer.x, localPlayer.y);
+function onPointerMove() {
+  if (!pointer.isDown || !socket || !localPlayer) return;
+  const me = networkPlayers[socket.id];
+  if (!me) return;
+
+  if (gameStateManager.status === 'prep' && me.role === 'hider') {
+    const local = screenToTextureLocal(pointer.x, pointer.y);
+    if (local) paintTool.continueStroke(local.x, local.y);
   }
 }
 
-function handlePointerUp() {
-  if (gameStateManager.status === 'prep' && paintTool) {
-    paintTool.handlePointerUp();
-  }
+function onPointerUp() {
+  if (paintTool) paintTool.endStroke();
 }
 
-function attemptTag(px, py) {
+/** 화면 좌표 → 내 캐릭터 텍스처의 로컬 좌표 (0~size) */
+function screenToTextureLocal(sx, sy) {
+  if (!localPlayer || !paintTool) return null;
+
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // 내 캐릭터의 화면 좌표
+  const ps = camera.worldToScreen(localPlayer.x, localPlayer.y, 0, W, H);
+  const sz = SPRITE_R * 2 * camera.scale;
+
+  // 스프라이트 영역: (ps.x - sz/2, ps.y - sz) ~ (ps.x + sz/2, ps.y)
+  const relX = (sx - (ps.x - sz / 2)) / sz * paintTool.size;
+  const relY = (sy - (ps.y - sz))      / sz * paintTool.size;
+
+  if (relX < 0 || relX > paintTool.size || relY < 0 || relY > paintTool.size) return null;
+  return { x: relX, y: relY };
+}
+
+function attemptTag(sx, sy) {
+  const W = canvas.width;
+  const H = canvas.height;
   let targetId = null;
-  // 클릭 지점이 누군가와 겹치는지 체크 (간단한 원 충돌)
+
   for (const id in networkPlayers) {
     if (id === socket.id) continue;
     const p = networkPlayers[id];
     if (!p.isAlive || p.role !== 'hider') continue;
 
-    const dx = p.x - px;
-    const dy = p.y - py;
-    if (Math.sqrt(dx * dx + dy * dy) <= 20) { // 반지름 20
+    const ps = camera.worldToScreen(p.x, p.y, 0, W, H);
+    const r  = SPRITE_R * camera.scale;
+    const dx = sx - ps.x;
+    const dy = sy - (ps.y - r * 0.5);
+    if (Math.sqrt(dx * dx + dy * dy) <= r * 1.2) {
       targetId = id;
       break;
     }

@@ -1,283 +1,362 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
 }
 
 body {
-  background-color: #f0f4f8; /* 밝은 회색/파스텔톤 느낌의 배경 */
-  color: #333;
-  overflow: hidden; /* 게임 화면 스크롤 방지 */
+  background-color: #0f1923;
+  color: #e0e6ed;
+  overflow: hidden;
 }
 
-/* 화면 전환 */
+/* ── 화면 전환 ── */
 .screen {
   display: none;
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
 }
-
 .screen.active {
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* 인증 / 메뉴 박스 */
+/* ── 인증 / 메뉴 박스 ── */
 .auth-box, .menu-box {
-  background-color: white;
+  background: linear-gradient(135deg, #1a2634 0%, #1e3044 100%);
   padding: 2.5rem;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
   text-align: center;
   width: 100%;
   max-width: 400px;
 }
 
 h1 {
-  font-size: 2.5rem;
+  font-size: 2.8rem;
   font-weight: 800;
-  color: #222;
-  margin-bottom: 0.5rem;
+  color: #fff;
+  margin-bottom: 0.4rem;
   letter-spacing: -1px;
 }
 
 .subtitle {
-  color: #888;
+  color: #7a8da0;
   margin-bottom: 2rem;
+  font-size: 0.95rem;
 }
 
-/* 폼 요소 */
+/* ── 폼 ── */
 .input-group {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.8rem;
   margin-bottom: 1.5rem;
 }
 
 input {
   padding: 12px 16px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
   font-size: 1rem;
   outline: none;
-  transition: border-color 0.2s;
+  background: rgba(255,255,255,0.05);
+  color: #e0e6ed;
+  transition: border-color 0.2s, background 0.2s;
 }
 
 input:focus {
-  border-color: #667eea;
+  border-color: #5b8def;
+  background: rgba(91,141,239,0.08);
+}
+
+input::placeholder {
+  color: #566a7f;
 }
 
 .button-group {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 0.7rem;
 }
 
 button {
   padding: 12px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.1s, opacity 0.2s;
+  transition: transform 0.08s, opacity 0.15s, background 0.2s;
 }
-
 button:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .primary-btn {
-  background-color: #667eea;
+  background: linear-gradient(135deg, #5b8def, #6c63ff);
   color: white;
 }
-
 .primary-btn:hover {
-  background-color: #5a6fe0;
+  background: linear-gradient(135deg, #4a7de0, #5b53f0);
 }
 
 .secondary-btn {
-  background-color: #e2e8f0;
-  color: #4a5568;
+  background: rgba(255,255,255,0.08);
+  color: #a0b4c8;
+  border: 1px solid rgba(255,255,255,0.1);
 }
-
 .secondary-btn:hover {
-  background-color: #cbd5e0;
+  background: rgba(255,255,255,0.14);
 }
 
 .danger-btn {
-  background-color: #fc8181;
-  color: white;
+  background: rgba(239,68,68,0.15);
+  color: #f87171;
+  border: 1px solid rgba(239,68,68,0.2);
+}
+.danger-btn:hover {
+  background: rgba(239,68,68,0.25);
 }
 
 .message {
   margin-top: 1rem;
   font-size: 0.9rem;
-  color: #e53e3e;
-  height: 1.2rem;
+  color: #f87171;
+  min-height: 1.2rem;
 }
 
 .auth-link {
   margin-top: 1.5rem;
   font-size: 0.9rem;
 }
-
 .auth-link a {
-  color: #667eea;
+  color: #5b8def;
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s;
 }
-
 .auth-link a:hover {
-  color: #5a6fe0;
+  color: #7aa3f5;
   text-decoration: underline;
 }
 
-/* 프로필 (메뉴) */
+/* ── 프로필 ── */
 .profile-info {
   margin-bottom: 2rem;
 }
-
 .title-badge {
   display: inline-block;
-  background-color: #f6ad55;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
   color: white;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 12px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  margin-top: 0.5rem;
+  margin-top: 0.4rem;
 }
-
 .stats {
-  margin-top: 1rem;
-  font-size: 0.95rem;
-  color: #666;
+  margin-top: 0.8rem;
+  font-size: 0.9rem;
+  color: #7a8da0;
 }
 
-/* 버전 표기 */
+/* ── 버전 표기 ── */
 .version-text {
   position: absolute;
-  bottom: 15px;
-  right: 20px;
-  font-size: 0.9rem;
+  bottom: 15px; right: 20px;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: rgba(0,0,0,0.3);
+  color: rgba(255,255,255,0.15);
+  pointer-events: none;
 }
 
-/* 게임 화면 */
+/* ════════════════════════════════════
+   인게임 화면
+   ════════════════════════════════════ */
 #game-screen {
-  background-color: #cce0ff; /* 임시 맵 배경색 (파스텔톤) */
+  background: #0a1420;
 }
 
 canvas {
   display: block;
 }
 
+/* ── 게임 UI 오버레이 ── */
 #game-ui {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  pointer-events: none; /* UI 뒤의 캔버스 클릭 가능하게 */
-  padding: 20px;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+.top-bar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .status-box {
-  background-color: rgba(255, 255, 255, 0.8);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-weight: bold;
-  display: inline-block;
-  backdrop-filter: blur(4px);
-  margin-bottom: 10px;
-  pointer-events: auto; /* 버튼 클릭을 위해 이벤트 활성화 */
+  background: rgba(15, 25, 35, 0.85);
+  backdrop-filter: blur(12px);
+  padding: 10px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  color: #c8d6e0;
 }
 
 .timer-text {
-  margin-left: 10px;
-  color: #e53e3e;
+  color: #f87171;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.start-btn {
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  border: none;
+  font-weight: 700;
+}
+.start-btn:hover {
+  background: linear-gradient(135deg, #16a34a, #15803d);
 }
 
 .hp-box {
-  background-color: rgba(255, 255, 255, 0.8);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-weight: bold;
+  background: rgba(15, 25, 35, 0.85);
+  backdrop-filter: blur(12px);
+  padding: 10px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  font-weight: 600;
+  font-size: 0.9rem;
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  backdrop-filter: blur(4px);
+  pointer-events: auto;
+  color: #c8d6e0;
 }
 
 .hp-bar-container {
-  width: 150px;
-  height: 12px;
-  background-color: #ddd;
-  border-radius: 6px;
+  width: 140px;
+  height: 10px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 5px;
   overflow: hidden;
 }
-
 .hp-bar-fill {
   width: 100%;
   height: 100%;
-  background-color: #48bb78;
+  background: #48bb78;
   transition: width 0.3s, background-color 0.3s;
+  border-radius: 5px;
 }
 
-/* 페인트 패널 */
-.paint-panel {
-  position: absolute;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(255, 255, 255, 0.95);
-  padding: 15px;
+/* ── 하단 바 (드로잉 도구) ── */
+.bottom-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.paint-toggle-btn {
+  pointer-events: auto;
+  background: rgba(15, 25, 35, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #c8d6e0;
+  padding: 8px 20px;
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.paint-toggle-btn:hover {
+  background: rgba(25, 45, 65, 0.9);
+}
+
+.paint-panel {
+  pointer-events: auto;
+  background: rgba(15, 25, 35, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 14px 20px;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  pointer-events: auto; /* UI 클릭 가능 */
+  /* 기본: 숨김 (닫힘) */
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease;
+}
+.paint-panel.open {
+  max-height: 200px;
+  opacity: 1;
+  padding: 14px 20px;
 }
 
 .tools-row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   justify-content: center;
   align-items: center;
 }
 
 .tool-btn {
-  background: none;
+  background: rgba(255,255,255,0.05);
   border: 2px solid transparent;
-  font-size: 1.5rem;
-  padding: 8px;
-  border-radius: 8px;
+  font-size: 1.3rem;
+  padding: 6px 8px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
+  transition: background 0.15s, border-color 0.15s;
+  color: #e0e6ed;
 }
-
 .tool-btn:hover {
-  background-color: #edf2f7;
+  background: rgba(255,255,255,0.12);
+}
+.tool-btn.active {
+  background: rgba(91, 141, 239, 0.15);
+  border-color: #5b8def;
 }
 
-.tool-btn.active {
-  background-color: #e2e8f0;
-  border-color: #667eea;
+input[type="range"] {
+  accent-color: #5b8def;
+  flex: 1;
+  background: transparent;
 }
 
 input[type="color"] {
-  border: none;
-  border-radius: 4px;
-  width: 40px;
-  height: 40px;
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
   cursor: pointer;
   padding: 0;
+  background: transparent;
 }
