@@ -122,6 +122,23 @@ button:active {
   height: 1.2rem;
 }
 
+.auth-link {
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.auth-link a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.auth-link a:hover {
+  color: #5a6fe0;
+  text-decoration: underline;
+}
+
 /* 프로필 (메뉴) */
 .profile-info {
   margin-bottom: 2rem;

@@ -3,14 +3,24 @@ let currentUser = null;
 let currentToken = null;
 
 // UI 요소
-const authScreen = document.getElementById('auth-screen');
+const loginScreen = document.getElementById('login-screen');
+const registerScreen = document.getElementById('register-screen');
 const menuScreen = document.getElementById('menu-screen');
-const nicknameInput = document.getElementById('nickname-input');
-const passwordInput = document.getElementById('password-input');
+
+const loginNickname = document.getElementById('login-nickname');
+const loginPassword = document.getElementById('login-password');
+const registerNickname = document.getElementById('register-nickname');
+const registerPassword = document.getElementById('register-password');
+
 const loginBtn = document.getElementById('login-btn');
 const registerBtn = document.getElementById('register-btn');
 const logoutBtn = document.getElementById('logout-btn');
-const authMessage = document.getElementById('auth-message');
+
+const loginMessage = document.getElementById('login-message');
+const registerMessage = document.getElementById('register-message');
+
+const goToRegister = document.getElementById('go-to-register');
+const goToLogin = document.getElementById('go-to-login');
 
 // 로비 UI 요소
 const profileNickname = document.getElementById('profile-nickname');
@@ -28,18 +38,29 @@ function initAuth() {
     currentUser = JSON.parse(userJson);
     showMenuScreen();
   } else {
-    showAuthScreen();
+    showLoginScreen();
   }
 }
 
-function showAuthScreen() {
-  authScreen.classList.add('active');
+function showLoginScreen() {
+  loginScreen.classList.add('active');
+  registerScreen.classList.remove('active');
   menuScreen.classList.remove('active');
   document.getElementById('game-screen').classList.remove('active');
+  loginMessage.textContent = '';
+}
+
+function showRegisterScreen() {
+  loginScreen.classList.remove('active');
+  registerScreen.classList.add('active');
+  menuScreen.classList.remove('active');
+  document.getElementById('game-screen').classList.remove('active');
+  registerMessage.textContent = '';
 }
 
 function showMenuScreen() {
-  authScreen.classList.remove('active');
+  loginScreen.classList.remove('active');
+  registerScreen.classList.remove('active');
   menuScreen.classList.add('active');
   document.getElementById('game-screen').classList.remove('active');
   
@@ -50,18 +71,24 @@ function showMenuScreen() {
   statWins.textContent = currentUser.wins;
 }
 
-function showMessage(msg, isError = true) {
-  authMessage.textContent = msg;
-  authMessage.style.color = isError ? '#e53e3e' : '#38a169';
-}
+// 화면 전환 이벤트
+goToRegister.addEventListener('click', (e) => {
+  e.preventDefault();
+  showRegisterScreen();
+});
+
+goToLogin.addEventListener('click', (e) => {
+  e.preventDefault();
+  showLoginScreen();
+});
 
 // 회원가입
 registerBtn.addEventListener('click', async () => {
-  const nickname = nicknameInput.value.trim();
-  const password = passwordInput.value;
+  const nickname = registerNickname.value.trim();
+  const password = registerPassword.value;
   
   if (!nickname || !password) {
-    showMessage('닉네임과 비밀번호를 입력해주세요.');
+    registerMessage.textContent = '닉네임과 비밀번호를 입력해주세요.';
     return;
   }
   
@@ -74,22 +101,30 @@ registerBtn.addEventListener('click', async () => {
     
     const data = await res.json();
     if (res.ok) {
-      showMessage('가입 성공! 로그인해주세요.', false);
+      registerMessage.style.color = '#38a169';
+      registerMessage.textContent = '가입 성공! 로그인 화면으로 이동합니다...';
+      setTimeout(() => {
+        loginNickname.value = nickname;
+        loginPassword.value = '';
+        showLoginScreen();
+      }, 1500);
     } else {
-      showMessage(data.error);
+      registerMessage.style.color = '#e53e3e';
+      registerMessage.textContent = data.error;
     }
   } catch (err) {
-    showMessage('서버 통신 오류가 발생했습니다.');
+    registerMessage.style.color = '#e53e3e';
+    registerMessage.textContent = '서버 통신 오류가 발생했습니다.';
   }
 });
 
 // 로그인
 loginBtn.addEventListener('click', async () => {
-  const nickname = nicknameInput.value.trim();
-  const password = passwordInput.value;
+  const nickname = loginNickname.value.trim();
+  const password = loginPassword.value;
   
   if (!nickname || !password) {
-    showMessage('닉네임과 비밀번호를 입력해주세요.');
+    loginMessage.textContent = '닉네임과 비밀번호를 입력해주세요.';
     return;
   }
   
@@ -107,13 +142,22 @@ loginBtn.addEventListener('click', async () => {
       localStorage.setItem('genome_token', currentToken);
       localStorage.setItem('genome_user', JSON.stringify(currentUser));
       showMenuScreen();
-      showMessage(''); // 초기화
     } else {
-      showMessage(data.error);
+      loginMessage.style.color = '#e53e3e';
+      loginMessage.textContent = data.error;
     }
   } catch (err) {
-    showMessage('서버 통신 오류가 발생했습니다.');
+    loginMessage.style.color = '#e53e3e';
+    loginMessage.textContent = '서버 통신 오류가 발생했습니다.';
   }
+});
+
+// 엔터 키 로그인/가입 지원
+loginPassword.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') loginBtn.click();
+});
+registerPassword.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') registerBtn.click();
 });
 
 // 로그아웃
@@ -122,7 +166,8 @@ logoutBtn.addEventListener('click', () => {
   localStorage.removeItem('genome_user');
   currentToken = null;
   currentUser = null;
-  showAuthScreen();
+  loginPassword.value = ''; // 비밀번호 초기화
+  showLoginScreen();
   if (typeof disconnectSocket === 'function') {
     disconnectSocket();
   }
