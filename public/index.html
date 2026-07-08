@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>눈치코치 서바이벌!</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="login-screen">
+        <h1>👀 눈치코치 서바이벌!</h1>
+        <p>최후의 1인이 되어보세요!</p>
+        <input type="text" id="nickname-input" placeholder="닉네임 입력 (최대 8자)" maxlength="8">
+        <button id="join-btn">입장하기</button>
+    </div>
+    
+    <div id="game-ui" class="hidden">
+        <div id="mission-text">곧 게임이 시작됩니다...</div>
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <!-- Socket.IO Client -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
