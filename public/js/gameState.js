@@ -20,13 +20,17 @@ class GameStateManager {
     document.getElementById('game-status').textContent = statusText;
     
     const timerEl = document.getElementById('game-timer');
+    const startBtn = document.getElementById('host-start-btn');
+    
     if (this.status !== 'lobby') {
       timerEl.style.display = 'inline-block';
+      if (startBtn) startBtn.style.display = 'none';
       const min = Math.floor(this.timer / 60).toString().padStart(2, '0');
       const sec = (this.timer % 60).toString().padStart(2, '0');
       timerEl.textContent = `${min}:${sec}`;
     } else {
       timerEl.style.display = 'none';
+      if (startBtn) startBtn.style.display = 'inline-block';
     }
     
     // 준비 단계일 때만 페인트 패널 표시 (숨는 자 기준, 아직은 전부 표시)

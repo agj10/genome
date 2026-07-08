@@ -109,8 +109,8 @@ document.addEventListener('DOMContentLoaded', () => {
     else alert('방 코드를 입력해주세요.');
   });
   
-  // 방장 강제 시작 버튼 (임시로 상태 박스 클릭 시 시작되도록)
-  document.getElementById('game-status').addEventListener('click', () => {
+  // 방장 강제 시작 버튼
+  document.getElementById('host-start-btn').addEventListener('click', () => {
     if (socket && socket.connected && gameStateManager.status === 'lobby') {
       socket.emit('startGame');
     }
@@ -141,7 +141,7 @@ function gameLoop(time) {
 }
 
 function update(dt) {
-  if (localPlayer && gameStateManager.status !== 'lobby') {
+  if (localPlayer) {
     // 사냥 단계에서 숨는 자는 이동 중 페인팅 불가 로직 등 추가 가능
     localPlayer.update(dt, input);
   }

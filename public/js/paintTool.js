@@ -7,8 +7,15 @@ class PaintTool {
     this.canvas.height = size;
     this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
     
-    // 초기화: 투명 배경
+    // 초기화: 기본 하얀색 원
     this.ctx.clearRect(0, 0, size, size);
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.beginPath();
+    this.ctx.arc(size/2, size/2, 20, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.strokeStyle = '#333';
+    this.ctx.lineWidth = 2;
+    this.ctx.stroke();
     
     this.currentTool = 'pen'; // 'pen', 'eraser', 'picker'
     this.currentColor = '#000000';
