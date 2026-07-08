@@ -32,6 +32,29 @@ function connectSocket() {
   socket.on('updatePlayers', (serverPlayers) => {
     networkPlayers = serverPlayers;
   });
+
+  socket.on('gameState', (state) => {
+    // 이전 상태가 prep이었고, 새로운 상태가 hunt라면 드로잉 완료 텍스처 서버로 전송
+    if (gameStateManager.status === 'prep' && state.status === 'hunt') {
+      if (paintTool) {
+        socket.emit('saveTexture', paintTool.getTextureData());
+      }
+    }
+    
+    gameStateManager.updateState(state);
+  });
+
+  socket.on('playerTagged', ({ targetId, seekerId }) => {
+    const targetName = networkPlayers[targetId]?.nickname || '누군가';
+    const seekerName = networkPlayers[seekerId]?.nickname || '술래';
+    console.log(`${targetName}님이 ${seekerName}님에게 잡혔습니다!`);
+    // 킬로그 UI 등 표시 가능
+  });
+
+  socket.on('gameEnd', ({ winner }) => {
+    const text = winner === 'hiders' ? '숨는 자 승리! 🎉' : '술래 승리! 💀';
+    document.getElementById('game-status').textContent = text;
+  });
 }
 
 function disconnectSocket() {

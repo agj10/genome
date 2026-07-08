@@ -37,6 +37,7 @@ function initAuth() {
     currentToken = token;
     currentUser = JSON.parse(userJson);
     showMenuScreen();
+    if (typeof checkUrlAndJoin === 'function') checkUrlAndJoin();
   } else {
     showLoginScreen();
   }
@@ -142,6 +143,7 @@ loginBtn.addEventListener('click', async () => {
       localStorage.setItem('genome_token', currentToken);
       localStorage.setItem('genome_user', JSON.stringify(currentUser));
       showMenuScreen();
+      if (typeof checkUrlAndJoin === 'function') checkUrlAndJoin();
     } else {
       loginMessage.style.color = '#e53e3e';
       loginMessage.textContent = data.error;

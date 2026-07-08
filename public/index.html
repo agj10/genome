@@ -67,9 +67,12 @@
       </div>
       
       <div class="button-group">
-        <button id="quick-start-btn" class="primary-btn">빠른 시작 (준비 중)</button>
-        <button id="join-room-btn" class="secondary-btn" onclick="document.getElementById('menu-screen').classList.remove('active'); document.getElementById('game-screen').classList.add('active'); startGame();">방 입장 (테스트용)</button>
-        <button id="logout-btn" class="danger-btn">로그아웃</button>
+        <button id="quick-start-btn" class="primary-btn">빠른 시작</button>
+        <div style="display: flex; gap: 10px; margin-top: 5px;">
+          <input type="text" id="room-code-input" placeholder="방 코드 (예: 3F4RUK)" style="flex: 1; text-transform: uppercase;" autocomplete="off">
+          <button id="join-room-btn" class="secondary-btn" style="white-space: nowrap;">참가</button>
+        </div>
+        <button id="logout-btn" class="danger-btn" style="margin-top: 15px;">로그아웃</button>
       </div>
     </div>
     <div class="version-text">a1.0</div>
@@ -81,16 +84,40 @@
     
     <div id="game-ui">
       <div class="top-bar">
-        <div class="status-box">상태: <span id="game-status">로비 대기 중</span></div>
+        <div class="status-box">
+          <span id="game-status">로비 대기 중</span>
+          <span id="game-timer" class="timer-text" style="display: none;">00:00</span>
+        </div>
+        <div class="hp-box" id="hp-box" style="display: none;">
+          HP: <div class="hp-bar-container"><div id="hp-bar-fill" class="hp-bar-fill"></div></div>
+        </div>
+      </div>
+      
+      <!-- 준비 단계 드로잉 패널 -->
+      <div id="paint-panel" class="paint-panel" style="display: none;">
+        <div class="tools-row">
+          <button id="tool-pen" class="tool-btn active" title="펜 (B)">✏️</button>
+          <button id="tool-eraser" class="tool-btn" title="지우개 (E)">🧹</button>
+          <button id="tool-picker" class="tool-btn" title="스포이드 (I)">🎨</button>
+          <button id="tool-undo" class="tool-btn" title="되돌리기 (Ctrl+Z)">↩️</button>
+          <button id="tool-redo" class="tool-btn" title="다시 실행 (Ctrl+Y)">↪️</button>
+        </div>
+        <div class="tools-row">
+          <input type="range" id="tool-size" min="1" max="50" value="5" title="굵기 조절">
+          <input type="color" id="tool-color" value="#000000" title="색상 선택">
+        </div>
       </div>
     </div>
-    <div class="version-text">a1.0</div>
+    
+    <div class="version-text">a2.0 (dev)</div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/network.js"></script>
+  <script src="js/paintTool.js"></script>
   <script src="js/player.js"></script>
+  <script src="js/gameState.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
