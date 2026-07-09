@@ -396,11 +396,7 @@ function render3D() {
     mapObjects.forEach(obj => {
       activeIds.add(obj.id);
       if (!meshCache[obj.id]) {
-        // 벽/책상 등은 육면체(Box)로 구현하여 실제 입체감을 줍니다.
-        // 또는 2D 스프라이트 형태로 세울 수도 있지만, "튀어나온 건 위로 뚝바로 세워서" 라면
-        // 입체 박스가 자연스럽습니다. 지시에 따라 입체 박스로 하거나 Plane으로 합니다.
-        // 여기선 입체(BoxGeometry)로 만들어 그림자와 물리(높이)를 자연스럽게 합니다.
-        // 박스(상자) 느낌의 텍스처 생성
+        // 2D 스프라이트 형태로 생성 (항상 카메라를 바라보는 평면)
         const boxCanvas = document.createElement('canvas');
         boxCanvas.width = 256; boxCanvas.height = 256;
         const bCtx = boxCanvas.getContext('2d');
@@ -415,8 +411,15 @@ function render3D() {
         bCtx.stroke();
         const boxTex = new THREE.CanvasTexture(boxCanvas);
 
-        const geo = new THREE.BoxGeometry(obj.size, obj.height, obj.size);
-        const mat = new THREE.MeshStandardMaterial({ map: boxTex, roughness: 0.7 });
+        // 오브젝트 모양에 따른 2D 지오메트리 사용 (기본은 사각형)
+        const geo = getShapeGeometry(obj.type || 'square', obj.size);
+        const mat = new THREE.MeshStandardMaterial({ 
+          map: boxTex, 
+          roughness: 0.7, 
+          transparent: true, 
+          alphaTest: 0.1,
+          side: THREE.DoubleSide
+        });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
@@ -425,6 +428,8 @@ function render3D() {
       }
       const mesh = meshCache[obj.id];
       mesh.position.set(obj.x, obj.height/2, obj.y);
+      // 완벽한 빌보드: 카메라 회전과 동일하게 맞춤
+      mesh.quaternion.copy(camera.quaternion);
     });
   }
 
@@ -458,8 +463,8 @@ function render3D() {
       });
     }
 
-    // 빌보딩 (카메라를 향해 Y축 회전)
-    mesh.rotation.y = Math.atan2(camera.position.x - mesh.position.x, camera.position.z - mesh.position.z);
+    // 완벽한 빌보드 (항상 카메라 방향)
+    mesh.quaternion.copy(camera.quaternion);
   }
 
   // 3. Players
@@ -521,8 +526,8 @@ function render3D() {
       mesh.material.color.setHex(p.role === 'seeker' ? 0xfc8181 : 0xe8ecf1);
     }
 
-    // 빌보딩 (카메라를 향해 Y축 회전)
-    mesh.rotation.y = Math.atan2(camera.position.x - mesh.position.x, camera.position.z - mesh.position.z);
+    // 완벽한 빌보드 (항상 카메라 방향)
+    mesh.quaternion.copy(camera.quaternion);
   }
 
   // 화면에 없는 엔티티 삭제
