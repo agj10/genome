@@ -14,6 +14,7 @@ const canvas = document.getElementById('game-canvas');
 let renderer, scene, camera, composer;
 let bokehPass, bloomPass, ssaoPass, rgbShiftPass;
 let ambientLight, dirLight;
+let groundMat; // 바닥 머티리얼 (색상 변경용)
 
 let isGameRunning = false;
 let lastTime = 0;
@@ -33,6 +34,7 @@ const textureCache = {};
 const meshCache = {};
 
 window.addEventListener('keydown', (e) => { 
+  if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
   input.keys[e.key] = true; 
   handleShortcuts(e.key);
   if (e.code === 'Space') {
@@ -41,7 +43,29 @@ window.addEventListener('keydown', (e) => {
   }
 });
 window.addEventListener('keyup', (e) => { input.keys[e.key] = false; });
+window.addEventListener('blur', () => { input.keys = {}; });
 window.addEventListener('resize', resizeCanvas);
+
+let isRightMouseDown = false;
+let cameraPitchOffset = 0;
+
+window.addEventListener('mousedown', (e) => {
+  if (e.button === 2) {
+    isRightMouseDown = true;
+    e.preventDefault();
+  }
+});
+window.addEventListener('mouseup', (e) => {
+  if (e.button === 2) isRightMouseDown = false;
+});
+window.addEventListener('mousemove', (e) => {
+  if (isRightMouseDown) {
+    cameraPitchOffset += e.movementY * 1.5;
+    if (cameraPitchOffset < -800) cameraPitchOffset = -800;
+    if (cameraPitchOffset > 800) cameraPitchOffset = 800;
+  }
+});
+window.addEventListener('contextmenu', e => e.preventDefault());
 
 function handleShortcuts(key) {
   if (!socket || !localPlayer) return;
@@ -127,11 +151,16 @@ function init3D() {
 
   scene = new THREE.Scene();
 
-  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 5000);
+  camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 5000);
   
   // 조명 세팅
   ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambientLight);
+
+  const pointLight = new THREE.PointLight(0xffddaa, 1.5, 2000);
+  pointLight.position.set(MAP.width / 2, 400, MAP.height / 2);
+  pointLight.castShadow = true;
+  scene.add(pointLight);
 
   dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
   dirLight.position.set(500, 1000, 500);
@@ -168,7 +197,7 @@ function init3D() {
 
   // 바닥 생성
   const groundGeo = new THREE.PlaneGeometry(MAP.width * 2, MAP.height * 2);
-  const groundMat = new THREE.MeshStandardMaterial({ map: gridTex, roughness: 0.8 });
+  groundMat = new THREE.MeshStandardMaterial({ map: gridTex, roughness: 0.8 });
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
@@ -193,8 +222,8 @@ function init3D() {
   // 3. Bokeh (피사계 심도)
   bokehPass = new BokehPass(scene, camera, {
     focus: 1.0,
-    aperture: 0.0001,
-    maxblur: 0.01,
+    aperture: 0.00005,
+    maxblur: 0.004,
     width: window.innerWidth,
     height: window.innerHeight
   });
@@ -257,7 +286,94 @@ function startGame() {
 
 // ── UI 이벤트 리스너 ──
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('quick-start-btn').addEventListener('click', () => window.joinRoom(generateRoomCode()));
+  document.getElementById('quick-start-btn').addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/quick-room');
+      const data = await res.json();
+      if (data.roomId) window.joinRoom(data.roomId);
+    } catch (e) {
+      console.error(e);
+      alert('빠른 시작 중 오류가 발생했습니다.');
+    }
+  });
+
+  const createModal = document.getElementById('create-room-modal');
+  if (document.getElementById('show-create-room-btn')) {
+    document.getElementById('show-create-room-btn').addEventListener('click', () => {
+      document.getElementById('create-room-modal').querySelector('h2').textContent = '새로운 방 만들기';
+      document.getElementById('create-room-confirm-btn').textContent = '방 만들기';
+      createModal.style.display = 'flex';
+    });
+  }
+  if (document.getElementById('create-room-cancel-btn')) {
+    document.getElementById('create-room-cancel-btn').addEventListener('click', () => {
+      createModal.style.display = 'none';
+    });
+  }
+
+  if (document.getElementById('create-room-confirm-btn')) {
+    document.getElementById('create-room-confirm-btn').addEventListener('click', async () => {
+      const isPublic = !document.getElementById('create-room-password').value;
+      const password = document.getElementById('create-room-password').value;
+      const maxPlayers = parseInt(document.getElementById('create-room-max').value);
+      const gameMode = document.getElementById('create-room-mode').value;
+      const mapTheme = document.getElementById('create-room-map').value;
+
+      if (currentRoomId) {
+        if (socket) {
+          socket.emit('updateRoomSettings', { isPublic, password, maxPlayers, gameMode, mapTheme });
+        }
+        createModal.style.display = 'none';
+        return;
+      }
+
+
+
+      const roomId = generateRoomCode();
+      try {
+        const res = await fetch('/api/create-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomId, isPublic, password, maxPlayers, gameMode, mapTheme })
+        });
+        const data = await res.json();
+        if (data.success) {
+          createModal.style.display = 'none';
+          window.joinRoom(roomId);
+        } else {
+          alert(data.error || '방 생성 실패');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    });
+  }
+
+  if (document.getElementById('edit-room-btn')) {
+    document.getElementById('edit-room-btn').addEventListener('click', () => {
+      if (window.gameStateManager && window.gameStateManager.settings) {
+        document.getElementById('create-room-mode').value = window.gameStateManager.settings.gameMode || 'normal';
+        document.getElementById('create-room-map').value = window.gameStateManager.settings.mapTheme || 'mansion';
+        document.getElementById('create-room-max').value = window.gameStateManager.settings.maxPlayers || 10;
+      }
+      document.getElementById('create-room-modal').querySelector('h2').textContent = '방 설정 변경';
+      document.getElementById('create-room-confirm-btn').textContent = '변경 저장';
+      createModal.style.display = 'flex';
+    });
+  }
+
+  const statsModal = document.getElementById('stats-modal');
+  if (document.getElementById('show-stats-btn')) {
+    document.getElementById('show-stats-btn').addEventListener('click', () => {
+      if (window.updateStatsUI) window.updateStatsUI();
+      statsModal.style.display = 'flex';
+    });
+  }
+  if (document.getElementById('close-stats-btn')) {
+    document.getElementById('close-stats-btn').addEventListener('click', () => {
+      statsModal.style.display = 'none';
+    });
+  }
 
   document.getElementById('join-room-btn').addEventListener('click', () => {
     const code = document.getElementById('room-code-input').value.trim();
@@ -293,10 +409,37 @@ function gameLoop(time) {
 
 function update(dt) {
   if (localPlayer) {
-    // XY 이동
+    const oldX = localPlayer.x;
+    const oldY = localPlayer.y;
+
     localPlayer.update(dt, input);
     
-    // Z 물리 (중력 및 점프)
+    const r = localPlayer.radius || 26;
+    
+    if (mapObjects) {
+      for (const obj of mapObjects) {
+        if (localPlayer.z < obj.height) {
+          const halfSize = obj.size / 2;
+          const left = obj.x - halfSize;
+          const right = obj.x + halfSize;
+          const top = obj.y - halfSize;
+          const bottom = obj.y + halfSize;
+          
+          if (localPlayer.x + r > left && localPlayer.x - r < right &&
+              localPlayer.y + r > top && localPlayer.y - r < bottom) {
+            
+            if (oldX + r <= left || oldX - r >= right) localPlayer.x = oldX;
+            if (oldY + r <= top || oldY - r >= bottom) localPlayer.y = oldY;
+          }
+        }
+      }
+    }
+
+    if (localPlayer.x < r) localPlayer.x = r;
+    if (localPlayer.x > MAP.width - r) localPlayer.x = MAP.width - r;
+    if (localPlayer.y < r) localPlayer.y = r;
+    if (localPlayer.y > MAP.height - r) localPlayer.y = MAP.height - r;
+
     const gravity = -900;
     localPlayer.vz += gravity * dt;
     localPlayer.z += localPlayer.vz * dt;
@@ -336,15 +479,15 @@ function update(dt) {
   if (localPlayer) {
     // 비스듬히 앞을 내려다보는 뷰 (거리: targetZoom)
     const camOffsetX = 0;
-    const camOffsetY = targetZoom * 0.8;
-    const camOffsetZ = targetZoom * 0.8; // Z가 높이 (three.js에서는 Y가 높이입니다)
+    const camOffsetY = (targetZoom * 0.5) + (cameraPitchOffset * 0.5);
+    const camOffsetZ = targetZoom * 0.9;
 
-    // Three.js 좌표계: x: 가로, z: 세로(깊이), y: 높이
     camera.position.x += ((localPlayer.x + camOffsetX) - camera.position.x) * 5 * dt;
     camera.position.z += ((localPlayer.y + camOffsetZ) - camera.position.z) * 5 * dt;
     camera.position.y += ((localPlayer.z + camOffsetY) - camera.position.y) * 5 * dt;
 
-    camera.lookAt(localPlayer.x, localPlayer.z, localPlayer.y); // Y와 Z 스왑
+    const lookAtY = localPlayer.z + (cameraPitchOffset * 0.2);
+    camera.lookAt(localPlayer.x, lookAtY, localPlayer.y);
   }
 }
 
@@ -662,31 +805,17 @@ function onPointerDown(e) {
   const me = networkPlayers[socket.id];
   if (!me) return;
 
-  if (gameStateManager.status === 'prep' && me.role === 'hider') {
-    const uv = getPointerIntersection(e.clientX, e.clientY);
-    if (uv && paintTool) {
-      paintTool.beginStroke(uv.x * paintTool.size, (1 - uv.y) * paintTool.size); // UV y축 반전
-    }
-  } else if (gameStateManager.status === 'hunt' && me.role === 'seeker') {
+  if (gameStateManager.status === 'hunt' && me.role === 'seeker') {
     attemptTag3D(e.clientX, e.clientY);
   }
 }
 
 function onPointerMove(e) {
-  if (!pointer.isDown || !socket || !localPlayer) return;
-  const me = networkPlayers[socket.id];
-  if (!me) return;
-  
-  if (gameStateManager.status === 'prep' && me.role === 'hider') {
-    const uv = getPointerIntersection(e.clientX, e.clientY);
-    if (uv && paintTool) {
-      paintTool.continueStroke(uv.x * paintTool.size, (1 - uv.y) * paintTool.size);
-    }
-  }
+  // 사용되지 않음 (paintTool.js 내부에서 처리)
 }
 
 function onPointerUp() {
-  if (paintTool) paintTool.endStroke();
+  // 사용되지 않음
 }
 
 function attemptTag3D(sx, sy) {

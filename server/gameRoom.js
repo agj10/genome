@@ -3,7 +3,7 @@ const HUNT_TIME = 180;
 const RESULT_TIME = 10;
 
 class GameRoom {
-  constructor(io, roomId) {
+  constructor(io, roomId, settings = {}) {
     this.io = io;
     this.roomId = roomId;
     this.status = 'lobby';
@@ -11,27 +11,99 @@ class GameRoom {
     this.intervalId = null;
     this.players = {};
     this.readyPlayers = new Set();
-    this.mode = 'normal'; // 'normal' | 'infection'
+    
+    // 방 설정 옵션
+    this.isPublic = settings.isPublic !== undefined ? settings.isPublic : true;
+    this.password = settings.password || '';
+    this.maxPlayers = settings.maxPlayers || 10;
+    this.gameMode = settings.gameMode || 'normal';
+    this.mapTheme = settings.mapTheme || 'mansion';
+    
     this.mapObjects = this.generateMapObjects();
     this.decoys = {}; // { decoyId: { ownerId, x, y, shape, textureData } }
     this.decoyCounter = 0;
   }
 
+  applySettings(settings) {
+    if (settings.isPublic !== undefined) this.isPublic = settings.isPublic;
+    if (settings.password !== undefined) this.password = settings.password;
+    if (settings.maxPlayers !== undefined) this.maxPlayers = settings.maxPlayers;
+    if (settings.gameMode !== undefined) this.gameMode = settings.gameMode;
+    if (settings.mapTheme !== undefined && settings.mapTheme !== this.mapTheme) {
+      this.mapTheme = settings.mapTheme;
+      this.mapObjects = this.generateMapObjects();
+      this.io.to(this.roomId).emit('mapData', this.mapObjects); // 맵 즉시 갱신
+    }
+    this.broadcastState();
+  }
+
   generateMapObjects() {
     const objects = [];
-    const colors = ['#e53e3e', '#ecc94b', '#48bb78', '#4299e1', '#ed64a6', '#9f7aea', '#a0aec0', '#4a5568'];
-    const shapes = ['circle', 'square', 'triangle'];
+    let colors = [];
+    let shapes = [];
+    let objectCount = 30;
+    let minSize = 40, maxSizeOffset = 40;
+    let minHeight = 40, maxHeightOffset = 60;
+
+    switch (this.mapTheme) {
+      case 'mansion':
+        colors = ['#8B4513', '#A0522D', '#D2691E', '#CD853F', '#F4A460'];
+        shapes = ['square'];
+        objectCount = 40;
+        minSize = 50; maxSizeOffset = 80;
+        break;
+      case 'sewer':
+        colors = ['#2F4F4F', '#556B2F', '#808000', '#696969', '#708090'];
+        shapes = ['circle'];
+        objectCount = 35;
+        minHeight = 60; maxHeightOffset = 40;
+        break;
+      case 'backrooms':
+        colors = ['#F5DEB3', '#FFE4B5', '#FFDAB9'];
+        shapes = ['square'];
+        objectCount = 10; // 장애물이 거의 없음
+        minSize = 100; maxSizeOffset = 50;
+        minHeight = 100; maxHeightOffset = 50;
+        break;
+      case 'country':
+        colors = ['#228B22', '#32CD32', '#DAA520', '#B8860B'];
+        shapes = ['square', 'circle'];
+        objectCount = 30;
+        minHeight = 30; maxHeightOffset = 40;
+        break;
+      case 'penguin':
+        colors = ['#ADD8E6', '#87CEEB', '#00BFFF', '#E0FFFF', '#FFFFFF'];
+        shapes = ['circle', 'triangle'];
+        objectCount = 35;
+        minSize = 30; maxSizeOffset = 40;
+        break;
+      case 'sugarland':
+        colors = ['#FF69B4', '#FFC0CB', '#FFA07A', '#FFD700', '#DDA0DD'];
+        shapes = ['circle', 'square', 'triangle'];
+        objectCount = 50; // 작고 많음
+        minSize = 20; maxSizeOffset = 30;
+        minHeight = 20; maxHeightOffset = 40;
+        break;
+      case 'osaka':
+        colors = ['#FF1493', '#00FFFF', '#FF00FF', '#FFFF00', '#00FF00'];
+        shapes = ['square'];
+        objectCount = 35;
+        break;
+      default:
+        colors = ['#e53e3e', '#ecc94b', '#48bb78', '#4299e1', '#ed64a6', '#9f7aea', '#a0aec0', '#4a5568'];
+        shapes = ['circle', 'square', 'triangle'];
+        break;
+    }
     
-    // 맵 크기에 맞춰 30개 정도의 무작위 오브젝트 생성
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < objectCount; i++) {
       objects.push({
         id: `obj_${i}`,
         type: shapes[Math.floor(Math.random() * shapes.length)],
         x: Math.random() * 1800 + 100, // 2000x2000 맵
         y: Math.random() * 1800 + 100,
         z: 0,
-        size: Math.random() * 40 + 40, // 너비/깊이
-        height: Math.random() * 60 + 40, // 40~100 높이 (벽, 책상 등)
+        size: Math.random() * maxSizeOffset + minSize, 
+        height: Math.random() * maxHeightOffset + minHeight, 
         color: colors[Math.floor(Math.random() * colors.length)]
       });
     }
@@ -54,8 +126,13 @@ class GameRoom {
       status: this.status,
       timer: this.timer,
       readyCount: this.readyPlayers.size,
-      totalCount: Object.keys(this.players).length,
-      mode: this.mode
+      playerCount: Object.keys(this.players).length,
+      settings: {
+        isPublic: this.isPublic,
+        maxPlayers: this.maxPlayers,
+        gameMode: this.gameMode,
+        mapTheme: this.mapTheme
+      }
     });
   }
 

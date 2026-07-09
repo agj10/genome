@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Genome - 2.5D 멀티플레이어 숨바꼭질</title>
+  <title>Genome - 멀티플레이어 숨바꼭질</title>
   <link rel="stylesheet" href="/css/style.css">
   
   <!-- Three.js Import Map -->
@@ -22,7 +22,7 @@
     <div class="auth-box">
       <button id="theme-toggle" class="theme-toggle" title="테마 변경">🌙</button>
       <h1>GENOME</h1>
-      <p class="subtitle">2.5D 숨바꼭질</p>
+      <p class="subtitle">멀티플레이어 숨바꼭질</p>
       
       <div class="input-group">
         <input type="text" id="login-nickname" placeholder="닉네임" autocomplete="off">
@@ -39,7 +39,7 @@
       </div>
     </div>
     </div>
-    <div class="version-text">a5.0 (3D Edition)</div>
+    <div class="version-text">a6.1</div>
   </div>
 
   <!-- 회원가입 화면 -->
@@ -82,29 +82,79 @@
       
       <div class="button-group">
         <button id="quick-start-btn" class="primary-btn">빠른 시작</button>
-        <div style="display: flex; gap: 10px; margin-top: 5px;">
+        <button id="show-create-room-btn" class="secondary-btn" style="margin-top: 5px;">방 만들기</button>
+        <button id="show-stats-btn" class="secondary-btn" style="margin-top: 5px;">전적 및 통계</button>
+        
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
           <input type="text" id="room-code-input" placeholder="방 코드 (예: 3F4RUK)" style="flex: 1; text-transform: uppercase;" autocomplete="off">
           <button id="join-room-btn" class="secondary-btn" style="white-space: nowrap;">참가</button>
-        </div>
-        
-        <div style="margin-top: 10px;">
-          <div class="custom-select" id="custom-mode-select">
-            <div class="custom-select-trigger" id="custom-mode-trigger">
-              <span id="custom-mode-label">🎮 노멀 모드</span>
-              <span class="arrow">▼</span>
-            </div>
-            <div class="custom-options">
-              <div class="custom-option selected" data-value="normal">🎮 노멀 모드</div>
-              <div class="custom-option" data-value="infection">🦠 감염 모드</div>
-              <div class="custom-option" data-value="double">🤝 더블 모드</div>
-            </div>
-          </div>
         </div>
 
         <button id="logout-btn" class="danger-btn" style="margin-top: 15px;">로그아웃</button>
       </div>
     </div>
-    <div class="version-text">a5.0 (3D Edition)</div>
+    <div class="version-text">a6.1</div>
+  </div>
+
+  <!-- 방 만들기 모달 -->
+  <div id="create-room-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h2>새로운 방 만들기</h2>
+      <div class="input-group">
+        <label>게임 모드</label>
+        <select id="create-room-mode">
+          <option value="normal">🎮 노멀 모드</option>
+          <option value="infection">🦠 감염 모드</option>
+          <option value="double">🤝 더블 모드</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>맵 테마</label>
+        <select id="create-room-map">
+          <option value="mansion">🏰 숨바꼭질 저택 (기본)</option>
+          <option value="sewer">🚰 하수도</option>
+          <option value="backrooms">🟨 백룸</option>
+          <option value="country">🌾 실내 컨트리</option>
+          <option value="penguin">🐧 펭귄 호텔</option>
+          <option value="sugarland">🍭 슈가랜드</option>
+          <option value="osaka">🏮 오사카</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>최대 인원 (2~20명)</label>
+        <input type="number" id="create-room-max" min="2" max="20" value="10">
+      </div>
+      <div class="input-group">
+        <label>비밀번호 (선택)</label>
+        <input type="password" id="create-room-password" placeholder="비워두면 공개방">
+      </div>
+      <div class="button-group" style="flex-direction: row; gap: 10px;">
+        <button id="create-room-confirm-btn" class="primary-btn" style="flex: 1;">방 만들기</button>
+        <button id="create-room-cancel-btn" class="secondary-btn" style="flex: 1;">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 통계 창 모달 -->
+  <div id="stats-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px; text-align: left;">
+      <h2 style="text-align: center; margin-bottom: 20px;">내 통계</h2>
+      <div class="stats-overview" style="text-align: center; border-bottom: 2px solid #3a4a5a; padding-bottom: 15px; margin-bottom: 15px;">
+        <div style="font-size: 1.5em; font-weight: bold;"><span id="stat-detail-matches">0</span>전 <span id="stat-detail-wins">0</span>승</div>
+        <div style="color: #4CAF50; font-size: 1.2em;">승률: <span id="stat-detail-winrate">0</span>%</div>
+      </div>
+      <div class="stats-details" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9em; color: #cbd5e1;">
+        <div>술래 플레이 횟수: <b id="stat-detail-seeker-games">0</b></div>
+        <div>술래로 우승한 횟수: <b id="stat-detail-seeker-wins">0</b></div>
+        <div>도망자 플레이 횟수: <b id="stat-detail-hider-games">0</b></div>
+        <div>도망자로 생존한 횟수: <b id="stat-detail-hider-wins">0</b></div>
+        <div>술래에게 잡힌 횟수: <b id="stat-detail-caught">0</b></div>
+        <div>술래로서 잡은 횟수: <b id="stat-detail-catches">0</b></div>
+        <div>변신 기능 사용 횟수: <b id="stat-detail-shape">0</b></div>
+        <div>분신(디코이) 사용 횟수: <b id="stat-detail-decoy">0</b></div>
+      </div>
+      <button id="close-stats-btn" class="primary-btn" style="margin-top: 20px;">닫기</button>
+    </div>
   </div>
 
   <!-- 인게임 화면 -->
@@ -117,6 +167,7 @@
         <div class="status-box">
           <span id="game-status">로비 대기 중</span>
           <span id="game-timer" class="timer-text" style="display: none;">00:00</span>
+          <button id="edit-room-btn" class="secondary-btn" style="display: none; padding: 6px 12px; font-size: 0.85rem;">방 설정</button>
           <button id="ready-btn" class="ready-btn">준비</button>
           <span id="ready-count" class="ready-count">0/0</span>
         </div>
@@ -157,6 +208,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="/js/theme.js"></script>
   <script src="/js/auth.js"></script>
+  <script src="/js/stats.js"></script>
   <script src="/js/network.js"></script>
   <script src="/js/camera.js"></script>
   <script src="/js/announcer.js"></script>

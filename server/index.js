@@ -30,6 +30,50 @@ app.get('/rooms/:id', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
+// 빠른 시작 (가장 사람 많은 대기방 찾기)
+app.get('/api/quick-room', (req, res) => {
+  let bestRoom = null;
+  let maxP = -1;
+  for (const [roomId, room] of rooms.entries()) {
+    if (room.status === 'lobby' && room.isPublic) {
+      const pCount = Object.keys(room.players).length;
+      if (pCount < room.maxPlayers && pCount > maxP) {
+        maxP = pCount;
+        bestRoom = roomId;
+      }
+    }
+  }
+  
+  if (bestRoom) {
+    res.json({ roomId: bestRoom });
+  } else {
+    // 없으면 새 방 생성용 랜덤 코드 반환 (사실상 Create Room 역할 병행)
+    const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let r = '';
+    for (let i = 0; i < 6; i++) r += c[Math.floor(Math.random() * c.length)];
+    res.json({ roomId: r, isNew: true });
+  }
+});
+
+// 방 만들기 (설정 적용)
+app.post('/api/create-room', (req, res) => {
+  const { roomId, isPublic, password, maxPlayers, gameMode, mapTheme } = req.body;
+  if (rooms.has(roomId)) {
+    return res.status(400).json({ error: '이미 존재하는 방입니다.' });
+  }
+  
+  const room = new GameRoom(io, roomId);
+  room.setPlayersReference({});
+  room.isPublic = isPublic;
+  room.password = password || '';
+  room.maxPlayers = maxPlayers || 10;
+  room.gameMode = gameMode || 'normal';
+  room.mapTheme = mapTheme || 'mansion';
+  rooms.set(roomId, room);
+  
+  res.json({ success: true, roomId });
+});
+
 // 데이터베이스 초기화
 initDB();
 
@@ -116,6 +160,22 @@ io.on('connection', (socket) => {
       room.players[socket.id].y = data.y;
       room.players[socket.id].z = data.z || 0;
     }
+  });
+
+  socket.on('updateRoomSettings', (settings) => {
+    if (currentRoomId && rooms.has(currentRoomId)) {
+      const room = rooms.get(currentRoomId);
+      // 방장인지 확인 (편의상 현재는 아무나 변경 가능, 차후 호스트 검증 추가)
+      if (room.status === 'lobby') {
+        room.applySettings(settings);
+      }
+    }
+  });
+
+  socket.on('playerReady', (isReady) => {
+    if (!currentRoomId) return;
+    const room = rooms.get(currentRoomId);
+    if (room) room.toggleReady(socket.id);
   });
 
   socket.on('toggleReady', () => {

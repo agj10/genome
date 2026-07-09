@@ -5,7 +5,10 @@
 class PaintTool {
   constructor(size) {
     this.size = size;
-    this.canvas = document.createElement('canvas');
+    this.canvas = document.getElementById('paint-canvas');
+    if (!this.canvas) {
+      this.canvas = document.createElement('canvas');
+    }
     this.canvas.width = size;
     this.canvas.height = size;
     this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
@@ -72,6 +75,40 @@ class PaintTool {
     if (toggleBtn) {
       toggleBtn.addEventListener('click', () => this.togglePanel());
     }
+
+    // 캔버스 마우스/터치 이벤트
+    this.canvas.addEventListener('mousedown', (e) => this.onPointerDown(e));
+    this.canvas.addEventListener('mousemove', (e) => this.onPointerMove(e));
+    window.addEventListener('mouseup', () => this.onPointerUp());
+    
+    this.canvas.addEventListener('touchstart', (e) => { e.preventDefault(); this.onPointerDown(e.touches[0]); }, { passive: false });
+    this.canvas.addEventListener('touchmove', (e) => { e.preventDefault(); this.onPointerMove(e.touches[0]); }, { passive: false });
+    window.addEventListener('touchend', () => this.onPointerUp());
+  }
+
+  getPointerPos(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  }
+
+  onPointerDown(e) {
+    const pos = this.getPointerPos(e);
+    this.beginStroke(pos.x, pos.y);
+  }
+
+  onPointerMove(e) {
+    if (!this.isDrawing) return;
+    const pos = this.getPointerPos(e);
+    this.continueStroke(pos.x, pos.y);
+  }
+
+  onPointerUp() {
+    this.endStroke();
   }
 
   togglePanel() {
