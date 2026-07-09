@@ -446,7 +446,6 @@ function update(dt) {
     
     // 바닥 충돌 (간단한 AABB - 맵 오브젝트 위에 올라가는 기능)
     let groundHeight = 0;
-    const r = 26; // 플레이어 반지름
     if (mapObjects) {
       for (const obj of mapObjects) {
         // AABB 체크 (원형이지만 박스로 취급)
