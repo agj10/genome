@@ -147,9 +147,28 @@ function init3D() {
   dirLight.shadow.camera.bottom = -d;
   scene.add(dirLight);
 
+  // 바닥 텍스처 생성 (그리드 무늬)
+  const gridCanvas = document.createElement('canvas');
+  gridCanvas.width = 512; gridCanvas.height = 512;
+  const gCtx = gridCanvas.getContext('2d');
+  gCtx.fillStyle = '#2d3748';
+  gCtx.fillRect(0, 0, 512, 512);
+  gCtx.strokeStyle = '#4a5568';
+  gCtx.lineWidth = 4;
+  gCtx.beginPath();
+  for (let i = 0; i <= 512; i += 64) {
+    gCtx.moveTo(i, 0); gCtx.lineTo(i, 512);
+    gCtx.moveTo(0, i); gCtx.lineTo(512, i);
+  }
+  gCtx.stroke();
+  const gridTex = new THREE.CanvasTexture(gridCanvas);
+  gridTex.wrapS = THREE.RepeatWrapping;
+  gridTex.wrapT = THREE.RepeatWrapping;
+  gridTex.repeat.set(MAP.width / 256, MAP.height / 256);
+
   // 바닥 생성
   const groundGeo = new THREE.PlaneGeometry(MAP.width * 2, MAP.height * 2);
-  const groundMat = new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.8 });
+  const groundMat = new THREE.MeshStandardMaterial({ map: gridTex, roughness: 0.8 });
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
@@ -381,8 +400,23 @@ function render3D() {
         // 또는 2D 스프라이트 형태로 세울 수도 있지만, "튀어나온 건 위로 뚝바로 세워서" 라면
         // 입체 박스가 자연스럽습니다. 지시에 따라 입체 박스로 하거나 Plane으로 합니다.
         // 여기선 입체(BoxGeometry)로 만들어 그림자와 물리(높이)를 자연스럽게 합니다.
+        // 박스(상자) 느낌의 텍스처 생성
+        const boxCanvas = document.createElement('canvas');
+        boxCanvas.width = 256; boxCanvas.height = 256;
+        const bCtx = boxCanvas.getContext('2d');
+        bCtx.fillStyle = obj.color;
+        bCtx.fillRect(0, 0, 256, 256);
+        bCtx.strokeStyle = 'rgba(0,0,0,0.3)';
+        bCtx.lineWidth = 16;
+        bCtx.strokeRect(8, 8, 240, 240);
+        bCtx.beginPath();
+        bCtx.moveTo(8, 8); bCtx.lineTo(248, 248);
+        bCtx.moveTo(248, 8); bCtx.lineTo(8, 248);
+        bCtx.stroke();
+        const boxTex = new THREE.CanvasTexture(boxCanvas);
+
         const geo = new THREE.BoxGeometry(obj.size, obj.height, obj.size);
-        const mat = new THREE.MeshStandardMaterial({ color: obj.color, roughness: 0.7 });
+        const mat = new THREE.MeshStandardMaterial({ map: boxTex, roughness: 0.7 });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
