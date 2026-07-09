@@ -465,3 +465,25 @@ input[type="color"] {
   padding: 0;
   background: transparent;
 }
+
+.mode-select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-input);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.shortcuts-info {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 5px;
+}
+.shortcuts-info b {
+  color: var(--text-primary);
+}

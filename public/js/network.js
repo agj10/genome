@@ -1,5 +1,7 @@
 let socket = null;
 let networkPlayers = {};
+let mapObjects = [];
+let networkDecoys = {};
 
 function connectSocket() {
   if (socket) return;
@@ -29,6 +31,14 @@ function connectSocket() {
     networkPlayers = serverPlayers;
   });
 
+  socket.on('mapData', (data) => {
+    mapObjects = data;
+  });
+
+  socket.on('updateDecoys', (decoys) => {
+    networkDecoys = decoys;
+  });
+
   socket.on('gameState', (state) => {
     // prep → hunt 전환 시 텍스처 전송
     if (gameStateManager.status === 'prep' && state.status === 'hunt') {
@@ -40,10 +50,14 @@ function connectSocket() {
     gameStateManager.updateState(state);
   });
 
-  socket.on('playerTagged', ({ targetId, seekerId }) => {
+  socket.on('playerTagged', ({ targetId, seekerId, infected }) => {
     const targetName = networkPlayers[targetId]?.nickname || '누군가';
     const seekerName = networkPlayers[seekerId]?.nickname || '술래';
-    announcer.announce(`💀 ${targetName} → ${seekerName}에게 잡힘!`, 2000);
+    if (infected) {
+      announcer.announce(`🦠 ${targetName} 감염됨! (술래 증가)`, 2000);
+    } else {
+      announcer.announce(`💀 ${targetName} → ${seekerName}에게 잡힘!`, 2000);
+    }
   });
 
   socket.on('gameEnd', ({ winner }) => {

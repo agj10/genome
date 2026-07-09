@@ -99,7 +99,12 @@ io.on('connection', (socket) => {
       timer: room.timer,
       readyCount: room.readyPlayers.size,
       totalCount: Object.keys(room.players).length,
+      mode: room.mode
     });
+    // 접속 시 생성되어 있는 맵 오브젝트 정보 전송
+    socket.emit('mapData', room.mapObjects);
+    socket.emit('updateDecoys', room.decoys);
+    
     io.to(roomId).emit('updatePlayers', room.players);
   });
 
@@ -126,11 +131,46 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('tagPlayer', (targetId) => {
+  socket.on('changeMode', (mode) => {
     if (!currentRoomId) return;
     const room = rooms.get(currentRoomId);
-    if (room && targetId) {
-      room.handleTag(socket.id, targetId);
+    if (room) room.setMode(mode);
+  });
+
+  socket.on('changeShape', (shape) => {
+    if (!currentRoomId) return;
+    const room = rooms.get(currentRoomId);
+    if (room && room.players[socket.id]) {
+      room.players[socket.id].shape = shape;
+      io.to(currentRoomId).emit('updatePlayers', room.players);
+    }
+  });
+
+  socket.on('addDecoy', (data) => {
+    if (!currentRoomId) return;
+    const room = rooms.get(currentRoomId);
+    if (room) {
+      room.addDecoy(socket.id, data.x, data.y, data.shape, data.textureData);
+    }
+  });
+
+  socket.on('removeDecoys', () => {
+    if (!currentRoomId) return;
+    const room = rooms.get(currentRoomId);
+    if (room) room.removeDecoys(socket.id);
+  });
+
+  socket.on('tagPlayer', (data) => {
+    if (!currentRoomId) return;
+    const room = rooms.get(currentRoomId);
+    if (room && data) {
+      if (typeof data === 'string') {
+        // 기존 호환성 유지
+        room.handleTag(socket.id, data, false);
+      } else {
+        // { targetId, isDecoy }
+        room.handleTag(socket.id, data.targetId, data.isDecoy);
+      }
     } else if (room) {
       room.handleMiss(socket.id);
     }

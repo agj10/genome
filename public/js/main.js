@@ -1,5 +1,5 @@
 // ────────────────────────────────────
-// main.js — 2.5D 렌더링 엔진
+// main.js — 2.5D 렌더링 엔진 & Phase 4 메커니즘
 // ────────────────────────────────────
 const canvas = document.getElementById('game-canvas');
 const ctx    = canvas.getContext('2d');
@@ -15,9 +15,48 @@ const MAP = { width: 2000, height: 2000 };
 const input   = { keys: {} };
 const pointer = { x: 0, y: 0, isDown: false };
 
-window.addEventListener('keydown', (e) => { input.keys[e.key] = true; });
+window.addEventListener('keydown', (e) => { 
+  input.keys[e.key] = true; 
+  handleShortcuts(e.key);
+});
 window.addEventListener('keyup',   (e) => { input.keys[e.key] = false; });
 window.addEventListener('resize', resizeCanvas);
+
+function handleShortcuts(key) {
+  if (!socket || !localPlayer) return;
+  const me = networkPlayers[socket.id];
+  if (!me || me.role !== 'hider' || !me.isAlive) return;
+
+  const k = key.toLowerCase();
+  
+  if (gameStateManager.status === 'prep') {
+    if (k === 'r') {
+      // 형태 변환 (Circle -> Square -> Triangle -> Circle)
+      const shapes = ['circle', 'square', 'triangle'];
+      let idx = shapes.indexOf(me.shape);
+      if (idx === -1) idx = 0;
+      const nextShape = shapes[(idx + 1) % shapes.length];
+      socket.emit('changeShape', nextShape);
+    }
+  }
+
+  if (gameStateManager.status === 'prep' || gameStateManager.status === 'hunt') {
+    if (k === 'q') {
+      // 디코이 설치
+      if (paintTool) {
+        socket.emit('addDecoy', {
+          x: localPlayer.x,
+          y: localPlayer.y,
+          shape: me.shape || 'circle',
+          textureData: paintTool.getTextureData()
+        });
+      }
+    } else if (k === 'x') {
+      // 디코이 제거
+      socket.emit('removeDecoys');
+    }
+  }
+}
 
 // ── 포인터 이벤트 ──
 canvas.addEventListener('mousedown', (e) => {
@@ -90,14 +129,6 @@ function startGame() {
   requestAnimationFrame(gameLoop);
 }
 
-function checkUrlAndJoin() {
-  const p = window.location.pathname;
-  if (p.startsWith('/rooms/')) {
-    const id = p.split('/')[2];
-    if (id) joinRoom(id);
-  }
-}
-
 // ── 메뉴 버튼 ──
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('quick-start-btn').addEventListener('click', () => joinRoom(generateRoomCode()));
@@ -111,6 +142,16 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('ready-btn').addEventListener('click', () => {
     gameStateManager.toggleReady();
   });
+
+  // 게임 모드 변경 (방장 전용/우선 누구나)
+  const modeSelect = document.getElementById('game-mode-select');
+  if (modeSelect) {
+    modeSelect.addEventListener('change', (e) => {
+      if (socket && socket.connected) {
+        socket.emit('changeMode', e.target.value);
+      }
+    });
+  }
 });
 
 // ────────────────────────────────────
@@ -153,13 +194,14 @@ function draw() {
   ctx.fillRect(0, 0, W, H);
 
   drawGround(W, H);
-  drawPlayers(W, H);
+  
+  // Y-Sorting 렌더링 파이프라인 (맵 오브젝트 + 플레이어 + 디코이)
+  renderYEntities(W, H);
 
-  // Announcer 오버레이 (맨 마지막에)
+  // Announcer 오버레이
   announcer.render(ctx, W, H);
 }
 
-// ── 바닥 그리드 ──
 function drawGround(W, H) {
   const gridSize = 100;
   const tl = camera.screenToWorld(0, 0, W, H);
@@ -200,12 +242,76 @@ function drawGround(W, H) {
   ctx.stroke();
 }
 
-// ── 플레이어 렌더링 ──
-function drawPlayers(W, H) {
+// ── 클리핑 렌더링 헬퍼 ──
+function drawShapeTexture(shape, x, y, r, imgSource) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.beginPath();
+  const sz = r * 2;
+  
+  if (shape === 'square') {
+    ctx.rect(-sz/2, -sz, sz, sz);
+  } else if (shape === 'triangle') {
+    ctx.moveTo(0, -sz);
+    ctx.lineTo(sz/2, 0);
+    ctx.lineTo(-sz/2, 0);
+    ctx.closePath();
+  } else {
+    // circle
+    ctx.arc(0, -sz/2, r, 0, Math.PI * 2);
+  }
+  
+  ctx.clip();
+  ctx.drawImage(imgSource, -sz/2, -sz, sz, sz);
+  ctx.restore();
+}
+
+function drawShapeSolid(shape, x, y, r, color, borderColor, isDead) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.beginPath();
+  const sz = r * 2;
+  
+  if (shape === 'square') {
+    ctx.rect(-sz/2, -sz, sz, sz);
+  } else if (shape === 'triangle') {
+    ctx.moveTo(0, -sz);
+    ctx.lineTo(sz/2, 0);
+    ctx.lineTo(-sz/2, 0);
+    ctx.closePath();
+  } else {
+    ctx.arc(0, -sz/2, r, 0, Math.PI * 2);
+  }
+  
+  ctx.fillStyle = color;
+  ctx.fill();
+  if (borderColor) {
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 2 * camera.scale;
+    ctx.stroke();
+  }
+  
+  if (isDead) {
+    ctx.strokeStyle = '#c00';
+    ctx.lineWidth = 3 * camera.scale;
+    const cr = r * 0.35;
+    ctx.beginPath();
+    ctx.moveTo(-cr, -r*0.5 - cr);
+    ctx.lineTo(cr, -r*0.5 + cr);
+    ctx.moveTo(cr, -r*0.5 - cr);
+    ctx.lineTo(-cr, -r*0.5 + cr);
+    ctx.stroke();
+  }
+  
+  ctx.restore();
+}
+
+// ── 통합 렌더링 ──
+function renderYEntities(W, H) {
   const myId = socket ? socket.id : null;
   const me   = myId ? networkPlayers[myId] : null;
 
-  // HP UI
+  // HP UI Update
   if (me) {
     gameStateManager.isSeeker = me.role === 'seeker';
     const hpBox = document.getElementById('hp-box');
@@ -219,80 +325,100 @@ function drawPlayers(W, H) {
     }
   }
 
-  // Y-Sorting
-  const sortedIds = Object.keys(networkPlayers).sort((a, b) => {
-    const ay = a === myId && localPlayer ? localPlayer.y : networkPlayers[a].y;
-    const by = b === myId && localPlayer ? localPlayer.y : networkPlayers[b].y;
-    return ay - by;
-  });
+  const entities = [];
 
-  for (const id of sortedIds) {
-    const p = networkPlayers[id];
+  // 1. Map Objects
+  if (mapObjects && mapObjects.length > 0) {
+    mapObjects.forEach(obj => {
+      entities.push({ type: 'obj', y: obj.y, data: obj });
+    });
+  }
+
+  // 2. Decoys
+  for (const dId in networkDecoys) {
+    const d = networkDecoys[dId];
+    entities.push({ type: 'decoy', y: d.y, id: dId, data: d });
+  }
+
+  // 3. Players
+  for (const pId in networkPlayers) {
+    const p = networkPlayers[pId];
     let wx = p.x, wy = p.y;
-    if (id === myId && localPlayer) { wx = localPlayer.x; wy = localPlayer.y; }
+    if (pId === myId && localPlayer) { wx = localPlayer.x; wy = localPlayer.y; }
+    entities.push({ type: 'player', y: wy, id: pId, data: p, wx });
+  }
 
-    const screen = camera.worldToScreen(wx, wy, 0, W, H);
-    const r = SPRITE_R * camera.scale;
+  // 정렬
+  entities.sort((a, b) => a.y - b.y);
 
-    if (screen.x < -r * 2 || screen.x > W + r * 2 || screen.y < -r * 2 || screen.y > H + r * 2) continue;
+  // 렌더
+  const rBase = SPRITE_R * camera.scale;
 
-    // 그림자
+  for (const ent of entities) {
+    const screen = camera.worldToScreen(ent.type==='player'?ent.wx:ent.data.x, ent.y, 0, W, H);
+    
+    // 그림자 (오브젝트는 크기에 비례, 플레이어/디코이는 고정)
+    let shadowR = rBase;
+    if (ent.type === 'obj') shadowR = (ent.data.size/2) * camera.scale;
+    
+    // 화면 밖이면 스킵
+    if (screen.x < -shadowR * 3 || screen.x > W + shadowR * 3 || screen.y < -shadowR * 3 || screen.y > H + shadowR * 3) continue;
+
     ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
     ctx.beginPath();
-    ctx.ellipse(screen.x, screen.y + r * 0.55, r * 0.7, r * 0.25, 0, 0, Math.PI * 2);
+    ctx.ellipse(screen.x, screen.y + shadowR * 0.55, shadowR * 0.7, shadowR * 0.25, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 캐릭터 스프라이트
-    if (id === myId && paintTool) {
-      const sz = SPRITE_R * 2 * camera.scale;
-      ctx.drawImage(paintTool.canvas, screen.x - sz / 2, screen.y - sz, sz, sz);
-    } else if (p.textureData) {
-      if (!textureCache[id] || textureCache[id]._src !== p.textureData) {
-        const img = new Image();
-        img.src = p.textureData;
-        img._src = p.textureData;
-        textureCache[id] = img;
-      }
-      const sz = SPRITE_R * 2 * camera.scale;
-      ctx.drawImage(textureCache[id], screen.x - sz / 2, screen.y - sz, sz, sz);
-    } else {
-      // 기본 플레이스홀더
-      const bodyColor = p.role === 'seeker' ? '#fc8181' : '#e8ecf1';
-      ctx.fillStyle = bodyColor;
-      ctx.beginPath();
-      ctx.arc(screen.x, screen.y - r * 0.5, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#556';
-      ctx.lineWidth = 2 * camera.scale;
-      ctx.stroke();
-      if (!p.isAlive) {
-        ctx.strokeStyle = '#c00';
-        ctx.lineWidth = 3 * camera.scale;
-        const cr = r * 0.35;
-        ctx.beginPath();
-        ctx.moveTo(screen.x - cr, screen.y - r * 0.5 - cr);
-        ctx.lineTo(screen.x + cr, screen.y - r * 0.5 + cr);
-        ctx.moveTo(screen.x + cr, screen.y - r * 0.5 - cr);
-        ctx.lineTo(screen.x - cr, screen.y - r * 0.5 + cr);
-        ctx.stroke();
+    if (ent.type === 'obj') {
+      const o = ent.data;
+      drawShapeSolid(o.type, screen.x, screen.y, (o.size/2) * camera.scale, o.color, 'rgba(0,0,0,0.2)', false);
+    } 
+    else if (ent.type === 'decoy') {
+      const d = ent.data;
+      if (d.textureData) {
+        if (!textureCache[ent.id] || textureCache[ent.id]._src !== d.textureData) {
+          const img = new Image();
+          img.src = d.textureData;
+          img._src = d.textureData;
+          textureCache[ent.id] = img;
+        }
+        drawShapeTexture(d.shape || 'circle', screen.x, screen.y, rBase, textureCache[ent.id]);
       }
     }
+    else if (ent.type === 'player') {
+      const p = ent.data;
+      const pShape = p.shape || 'circle';
 
-    // 닉네임
-    const isHunt  = gameStateManager.status === 'hunt';
-    const hideName = isHunt && me && me.role === 'seeker' && p.role === 'hider' && p.isAlive;
-    if (!hideName) {
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.font = `bold ${Math.round(13 * camera.scale)}px Inter, sans-serif`;
-      ctx.textAlign = 'center';
-      const label = p.nickname + (p.isAlive ? '' : ' 💀');
-      // 텍스트 배경
-      const tw = ctx.measureText(label).width;
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      const ty = screen.y - r * 1.8;
-      ctx.fillRect(screen.x - tw / 2 - 4, ty - 8, tw + 8, 16);
-      ctx.fillStyle = '#fff';
-      ctx.fillText(label, screen.x, ty);
+      if (ent.id === myId && paintTool) {
+        drawShapeTexture(pShape, screen.x, screen.y, rBase, paintTool.canvas);
+      } else if (p.textureData) {
+        if (!textureCache[ent.id] || textureCache[ent.id]._src !== p.textureData) {
+          const img = new Image();
+          img.src = p.textureData;
+          img._src = p.textureData;
+          textureCache[ent.id] = img;
+        }
+        drawShapeTexture(pShape, screen.x, screen.y, rBase, textureCache[ent.id]);
+      } else {
+        const bodyColor = p.role === 'seeker' ? '#fc8181' : '#e8ecf1';
+        drawShapeSolid(pShape, screen.x, screen.y, rBase, bodyColor, '#556', !p.isAlive);
+      }
+
+      // 닉네임
+      const isHunt  = gameStateManager.status === 'hunt';
+      const hideName = isHunt && me && me.role === 'seeker' && p.role === 'hider' && p.isAlive;
+      if (!hideName) {
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.font = `bold ${Math.round(13 * camera.scale)}px Inter, sans-serif`;
+        ctx.textAlign = 'center';
+        const label = p.nickname + (p.isAlive ? '' : ' 💀');
+        const tw = ctx.measureText(label).width;
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        const ty = screen.y - rBase * 1.8;
+        ctx.fillRect(screen.x - tw / 2 - 4, ty - 8, tw + 8, 16);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(label, screen.x, ty);
+      }
     }
   }
 }
@@ -334,19 +460,53 @@ function screenToTextureLocal(sx, sy) {
   const sz = SPRITE_R * 2 * camera.scale;
   const relX = (sx - (ps.x - sz / 2)) / sz * paintTool.size;
   const relY = (sy - (ps.y - sz))      / sz * paintTool.size;
+  
   if (relX < 0 || relX > paintTool.size || relY < 0 || relY > paintTool.size) return null;
+  
+  // 클리핑: 형태 밖이면 붓질 무시
+  const me = networkPlayers[socket.id];
+  const shape = me?.shape || 'circle';
+  const cx = paintTool.size / 2;
+  const cy = paintTool.size / 2;
+  
+  if (shape === 'circle') {
+    const dx = relX - cx;
+    const dy = relY - cy;
+    if (dx*dx + dy*dy > cx*cx) return null;
+  } else if (shape === 'triangle') {
+    // 단순화된 삼각형 판정: top(cx, 0), bl(0, size), br(size, size)
+    // 좀 더 정밀하게 할 수도 있지만 직관적으로 패스
+    if (relY < paintTool.size - relX * 2 && relX < cx) return null;
+    if (relY < relX * 2 - paintTool.size && relX > cx) return null;
+  }
+  
   return { x: relX, y: relY };
 }
 
 function attemptTag(sx, sy) {
   const W = canvas.width, H = canvas.height;
+  const r  = SPRITE_R * camera.scale;
+  
+  // 1. 디코이 검사
+  for (const dId in networkDecoys) {
+    const d = networkDecoys[dId];
+    const ps = camera.worldToScreen(d.x, d.y, 0, W, H);
+    const dx = sx - ps.x;
+    const dy = sy - (ps.y - r * 0.5);
+    if (Math.sqrt(dx * dx + dy * dy) <= r * 1.2) {
+      socket.emit('tagPlayer', { targetId: dId, isDecoy: true });
+      return;
+    }
+  }
+
+  // 2. 플레이어 검사
   let targetId = null;
   for (const id in networkPlayers) {
     if (id === socket.id) continue;
     const p = networkPlayers[id];
     if (!p.isAlive || p.role !== 'hider') continue;
+    
     const ps = camera.worldToScreen(p.x, p.y, 0, W, H);
-    const r  = SPRITE_R * camera.scale;
     const dx = sx - ps.x;
     const dy = sy - (ps.y - r * 0.5);
     if (Math.sqrt(dx * dx + dy * dy) <= r * 1.2) {
@@ -354,5 +514,11 @@ function attemptTag(sx, sy) {
       break;
     }
   }
-  socket.emit('tagPlayer', targetId);
+  
+  if (targetId) {
+    socket.emit('tagPlayer', { targetId: targetId, isDecoy: false });
+  } else {
+    // 헛스윙 처리 요청
+    socket.emit('tagPlayer', null);
+  }
 }
