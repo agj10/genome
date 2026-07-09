@@ -73,8 +73,8 @@ function disconnectSocket() {
   }
 }
 
-function emitMove(x, y) {
+function emitMove(x, y, z = 0) {
   if (socket && socket.connected) {
-    socket.emit('move', { x, y });
+    socket.emit('move', { x, y, z });
   }
 }

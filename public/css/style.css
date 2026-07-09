@@ -466,16 +466,73 @@ input[type="color"] {
   background: transparent;
 }
 
-.mode-select {
+/* ── Custom Select (Game Mode) ── */
+.custom-select {
+  position: relative;
   width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border-input);
+  user-select: none;
+}
+.custom-select-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
   background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
   color: var(--text-primary);
   font-size: 0.95rem;
-  outline: none;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+.custom-select.open .custom-select-trigger {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.custom-select-trigger .arrow {
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+}
+.custom-select.open .custom-select-trigger .arrow {
+  transform: rotate(180deg);
+}
+.custom-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-input);
+  border-top: none;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  display: none;
+  z-index: 1000;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+.custom-select.open .custom-options {
+  display: block;
+  animation: fadeInDown 0.2s ease;
+}
+.custom-option {
+  padding: 10px 15px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.custom-option:hover {
+  background: var(--primary-color);
+  color: #fff;
+}
+.custom-option.selected {
+  background: var(--bg-input);
+  font-weight: bold;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .shortcuts-info {

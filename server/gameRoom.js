@@ -29,7 +29,9 @@ class GameRoom {
         type: shapes[Math.floor(Math.random() * shapes.length)],
         x: Math.random() * 1800 + 100, // 2000x2000 맵
         y: Math.random() * 1800 + 100,
-        size: Math.random() * 40 + 40, // 40~80 크기
+        z: 0,
+        size: Math.random() * 40 + 40, // 너비/깊이
+        height: Math.random() * 60 + 40, // 40~100 높이 (벽, 책상 등)
         color: colors[Math.floor(Math.random() * colors.length)]
       });
     }

@@ -114,6 +114,7 @@ io.on('connection', (socket) => {
     if (room && room.players[socket.id] && room.players[socket.id].isAlive) {
       room.players[socket.id].x = data.x;
       room.players[socket.id].y = data.y;
+      room.players[socket.id].z = data.z || 0;
     }
   });
 

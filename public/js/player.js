@@ -28,9 +28,6 @@ class LocalPlayer {
     if (dx !== 0 || dy !== 0) {
       this.x += dx * this.speed * dt;
       this.y += dy * this.speed * dt;
-
-      // 서버로 위치 전송
-      emitMove(this.x, this.y);
     }
   }
 }

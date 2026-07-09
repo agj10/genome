@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Genome - 2.5D 멀티플레이어 숨바꼭질</title>
   <link rel="stylesheet" href="/css/style.css">
+  
+  <!-- Three.js Import Map -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
 </head>
 <body>
   <!-- 로그인 화면 -->
@@ -28,7 +38,8 @@
         <a href="#" id="go-to-register">계정이 없으신가요? 회원가입</a>
       </div>
     </div>
-    <div class="version-text">a4.0</div>
+    </div>
+    <div class="version-text">a5.0 (3D Edition)</div>
   </div>
 
   <!-- 회원가입 화면 -->
@@ -51,7 +62,8 @@
         <a href="#" id="go-to-login">이미 계정이 있으신가요? 로그인</a>
       </div>
     </div>
-    <div class="version-text">a4.0</div>
+    </div>
+    <div class="version-text">a5.0 (3D Edition)</div>
   </div>
 
   <!-- 메인 메뉴 화면 -->
@@ -76,16 +88,22 @@
         </div>
         
         <div style="margin-top: 10px;">
-          <select id="game-mode-select" class="mode-select" title="게임 모드 설정 (방장용)">
-            <option value="normal">🎮 노멀 모드</option>
-            <option value="infection">🦠 감염 모드 (좀비)</option>
-          </select>
+          <div class="custom-select" id="custom-mode-select">
+            <div class="custom-select-trigger" id="custom-mode-trigger">
+              <span id="custom-mode-label">🎮 노멀 모드</span>
+              <span class="arrow">▼</span>
+            </div>
+            <div class="custom-options">
+              <div class="custom-option selected" data-value="normal">🎮 노멀 모드</div>
+              <div class="custom-option" data-value="infection">🦠 감염 모드 (좀비)</div>
+            </div>
+          </div>
         </div>
 
         <button id="logout-btn" class="danger-btn" style="margin-top: 15px;">로그아웃</button>
       </div>
     </div>
-    <div class="version-text">a4.0</div>
+    <div class="version-text">a5.0 (3D Edition)</div>
   </div>
 
   <!-- 인게임 화면 -->
@@ -131,7 +149,8 @@
       </div>
     </div>
     
-    <div class="version-text">a4.0</div>
+    <div class="version-text">a5.0 (3D Edition)</div>
+  </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -143,6 +162,45 @@
   <script src="/js/paintTool.js"></script>
   <script src="/js/player.js"></script>
   <script src="/js/gameState.js"></script>
-  <script src="/js/main.js"></script>
+  
+  <script>
+    // Custom Select Dropdown UI logic
+    document.addEventListener('DOMContentLoaded', () => {
+      const trigger = document.getElementById('custom-mode-trigger');
+      const optionsContainer = document.querySelector('.custom-options');
+      const label = document.getElementById('custom-mode-label');
+      const options = document.querySelectorAll('.custom-option');
+      let currentMode = 'normal';
+
+      if (trigger) {
+        trigger.addEventListener('click', () => {
+          trigger.parentElement.classList.toggle('open');
+        });
+
+        options.forEach(opt => {
+          opt.addEventListener('click', () => {
+            options.forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            currentMode = opt.getAttribute('data-value');
+            label.textContent = opt.textContent;
+            trigger.parentElement.classList.remove('open');
+
+            // Dispatch event for main.js to catch
+            window.dispatchEvent(new CustomEvent('gameModeChanged', { detail: currentMode }));
+          });
+        });
+        
+        // Click outside to close
+        document.addEventListener('click', (e) => {
+          if (!trigger.parentElement.contains(e.target)) {
+            trigger.parentElement.classList.remove('open');
+          }
+        });
+      }
+    });
+  </script>
+
+  <!-- Three.js 렌더러를 탑재한 메인 로직은 모듈로 불러옵니다 -->
+  <script type="module" src="/js/main.js"></script>
 </body>
 </html>
