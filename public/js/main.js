@@ -2,12 +2,17 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { RGBShiftShader } from 'three/addons/shaders/RGBShiftShader.js';
 
 // ────────────────────────────────────
 // main.js — Three.js 3D 렌더링 엔진 & Phase 5
 // ────────────────────────────────────
 const canvas = document.getElementById('game-canvas');
-let renderer, scene, camera, composer, bokehPass;
+let renderer, scene, camera, composer;
+let bokehPass, bloomPass, ssaoPass, rgbShiftPass;
 let ambientLight, dirLight;
 
 let isGameRunning = false;
@@ -150,11 +155,23 @@ function init3D() {
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // 포스트프로세싱 (피사계 심도)
+  // 포스트프로세싱 설정
   composer = new EffectComposer(renderer);
   const renderPass = new RenderPass(scene, camera);
   composer.addPass(renderPass);
 
+  // 1. SSAO (Screen Space Ambient Occlusion) - 구석구석 자연스러운 음영 추가
+  ssaoPass = new SSAOPass(scene, camera, window.innerWidth, window.innerHeight);
+  ssaoPass.kernelRadius = 16;
+  ssaoPass.minDistance = 0.001;
+  ssaoPass.maxDistance = 0.1;
+  composer.addPass(ssaoPass);
+
+  // 2. Bloom (빛 번짐)
+  bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.4, 0.85);
+  composer.addPass(bloomPass);
+
+  // 3. Bokeh (피사계 심도)
   bokehPass = new BokehPass(scene, camera, {
     focus: 1.0,
     aperture: 0.0001,
@@ -163,6 +180,11 @@ function init3D() {
     height: window.innerHeight
   });
   composer.addPass(bokehPass);
+
+  // 4. RGB Shift (색 수차 - 술래 거리에 따른 효과)
+  rgbShiftPass = new ShaderPass(RGBShiftShader);
+  rgbShiftPass.uniforms['amount'].value = 0.0;
+  composer.addPass(rgbShiftPass);
 }
 
 // ────────────────────────────────────
@@ -482,6 +504,27 @@ function render3D() {
   if (localPlayer) {
     const dist = camera.position.distanceTo(meshCache[myId]?.position || new THREE.Vector3(localPlayer.x, localPlayer.z, localPlayer.y));
     bokehPass.uniforms['focus'].value = dist;
+  }
+
+  // 색 수차 조절 (술래와의 거리)
+  if (rgbShiftPass && localPlayer && me && me.role === 'hider' && gameStateManager.status === 'hunt') {
+    let minSeekerDist = Infinity;
+    for (const pId in networkPlayers) {
+      const p = networkPlayers[pId];
+      if (p.role === 'seeker' && p.isAlive && meshCache[pId]) {
+        const d = new THREE.Vector2(localPlayer.x - p.x, localPlayer.y - p.y).length();
+        if (d < minSeekerDist) minSeekerDist = d;
+      }
+    }
+    // 술래가 300 유닛 이내로 접근하면 효과 강해짐
+    if (minSeekerDist < 300) {
+      const intensity = (300 - minSeekerDist) / 300;
+      rgbShiftPass.uniforms['amount'].value = intensity * 0.015; // 최대 0.015
+    } else {
+      rgbShiftPass.uniforms['amount'].value = 0.0;
+    }
+  } else if (rgbShiftPass) {
+    rgbShiftPass.uniforms['amount'].value = 0.0;
   }
 
   // 렌더
