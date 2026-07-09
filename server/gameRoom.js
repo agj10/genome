@@ -1,15 +1,16 @@
-const PREP_TIME = 60; // 준비 시간 60초
-const HUNT_TIME = 180; // 사냥 시간 3분
-const RESULT_TIME = 10; // 결과 화면 10초
+const PREP_TIME = 60;
+const HUNT_TIME = 180;
+const RESULT_TIME = 10;
 
 class GameRoom {
   constructor(io, roomId) {
     this.io = io;
     this.roomId = roomId;
-    this.status = 'lobby'; // lobby, prep, hunt, results
+    this.status = 'lobby';
     this.timer = 0;
     this.intervalId = null;
     this.players = {};
+    this.readyPlayers = new Set();
   }
 
   setPlayersReference(playersObj) {
@@ -19,24 +20,49 @@ class GameRoom {
   broadcastState() {
     this.io.to(this.roomId).emit('gameState', {
       status: this.status,
-      timer: this.timer
+      timer: this.timer,
+      readyCount: this.readyPlayers.size,
+      totalCount: Object.keys(this.players).length,
     });
+  }
+
+  // ── 레디 시스템 ──
+  toggleReady(socketId) {
+    if (this.status !== 'lobby') return;
+
+    if (this.readyPlayers.has(socketId)) {
+      this.readyPlayers.delete(socketId);
+    } else {
+      this.readyPlayers.add(socketId);
+    }
+
+    this.broadcastState();
+
+    // 전원 레디 체크 (최소 1명 이상)
+    const total = Object.keys(this.players).length;
+    if (total > 0 && this.readyPlayers.size >= total) {
+      this.startPrep();
+    }
+  }
+
+  removePlayer(socketId) {
+    this.readyPlayers.delete(socketId);
+    delete this.players[socketId];
   }
 
   startPrep() {
     this.status = 'prep';
     this.timer = PREP_TIME;
+    this.readyPlayers.clear();
     this.assignRoles();
-    
-    // 플레이어 체력 초기화
+
     Object.values(this.players).forEach(p => {
       p.hp = 100;
-      p.textureData = null; // 텍스처 초기화
+      p.textureData = null;
     });
-    
-    this.broadcastState();
-    this.io.to(this.roomId).emit('updatePlayers', this.players); // 역할 배정 결과 전송
 
+    this.broadcastState();
+    this.io.to(this.roomId).emit('updatePlayers', this.players);
     this.startTimer(() => this.startHunt());
   }
 
@@ -44,7 +70,6 @@ class GameRoom {
     this.status = 'hunt';
     this.timer = HUNT_TIME;
     this.broadcastState();
-
     this.startTimer(() => this.startResults());
   }
 
@@ -53,25 +78,21 @@ class GameRoom {
     this.timer = RESULT_TIME;
     this.broadcastState();
 
-    // 결과 정산 로직 (생존자 여부 판단)
     let hidersAlive = 0;
     Object.values(this.players).forEach(p => {
-      if (p.role === 'hider' && p.isAlive) {
-        hidersAlive++;
-      }
+      if (p.role === 'hider' && p.isAlive) hidersAlive++;
     });
 
     const winner = hidersAlive > 0 ? 'hiders' : 'seekers';
     this.io.to(this.roomId).emit('gameEnd', { winner });
-
     this.startTimer(() => this.resetToLobby());
   }
 
   resetToLobby() {
     this.status = 'lobby';
     this.timer = 0;
-    
-    // 플레이어 상태 리셋
+    this.readyPlayers.clear();
+
     Object.values(this.players).forEach(p => {
       p.role = 'hider';
       p.isAlive = true;
@@ -79,7 +100,7 @@ class GameRoom {
     });
 
     this.broadcastState();
-    this.io.emit('updatePlayers', this.players);
+    this.io.to(this.roomId).emit('updatePlayers', this.players);
   }
 
   startTimer(onComplete) {
@@ -87,8 +108,7 @@ class GameRoom {
 
     this.intervalId = setInterval(() => {
       this.timer--;
-      this.broadcastState(); // 1초마다 타이머 브로드캐스트
-
+      this.broadcastState();
       if (this.timer <= 0) {
         clearInterval(this.intervalId);
         if (onComplete) onComplete();
@@ -97,46 +117,37 @@ class GameRoom {
   }
 
   assignRoles() {
-    const playerIds = Object.keys(this.players);
-    if (playerIds.length === 0) return;
+    const ids = Object.keys(this.players);
+    if (ids.length === 0) return;
 
-    // 초기화
-    playerIds.forEach(id => {
+    ids.forEach(id => {
       this.players[id].role = 'hider';
       this.players[id].isAlive = true;
     });
 
-    // 랜덤으로 1명 술래 지정 (인원이 많으면 비례해서 증가 가능)
-    const seekerIndex = Math.floor(Math.random() * playerIds.length);
-    const seekerId = playerIds[seekerIndex];
-    this.players[seekerId].role = 'seeker';
+    const seekerIdx = Math.floor(Math.random() * ids.length);
+    this.players[ids[seekerIdx]].role = 'seeker';
   }
 
   handleTag(seekerId, targetId) {
     if (this.status !== 'hunt') return;
     const seeker = this.players[seekerId];
     const target = this.players[targetId];
-
     if (!seeker || !target) return;
     if (seeker.role !== 'seeker' || target.role !== 'hider') return;
     if (!target.isAlive) return;
 
-    // 태그 성공
     target.isAlive = false;
     this.io.to(this.roomId).emit('playerTagged', { targetId, seekerId });
     this.io.to(this.roomId).emit('updatePlayers', this.players);
 
-    // 모든 hider가 잡혔는지 체크
     let hidersAlive = 0;
     Object.values(this.players).forEach(p => {
-      if (p.role === 'hider' && p.isAlive) {
-        hidersAlive++;
-      }
+      if (p.role === 'hider' && p.isAlive) hidersAlive++;
     });
-
     if (hidersAlive === 0) {
       if (this.intervalId) clearInterval(this.intervalId);
-      this.startResults(); // 즉시 사냥 종료
+      this.startResults();
     }
   }
 
@@ -144,11 +155,8 @@ class GameRoom {
     if (this.status !== 'hunt') return;
     const seeker = this.players[seekerId];
     if (seeker && seeker.role === 'seeker') {
-      seeker.hp -= 20; // 헛스윙 시 체력 20 감소
-      if (seeker.hp <= 0) {
-        seeker.hp = 0;
-        // 기절 페널티 부여 로직 추가 가능
-      }
+      seeker.hp -= 20;
+      if (seeker.hp < 0) seeker.hp = 0;
       this.io.to(this.roomId).emit('updatePlayers', this.players);
     }
   }

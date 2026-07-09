@@ -1,16 +1,48 @@
 // ────────────────────────────────────
 // GameStateManager — 클라이언트 UI 상태
+// 레디 시스템 + Announcer 연동
 // ────────────────────────────────────
 class GameStateManager {
   constructor() {
     this.status = 'lobby';
     this.timer = 0;
     this.isSeeker = false;
+    this.readyCount = 0;
+    this.totalCount = 0;
+    this.amReady = false;
+    this._prevStatus = 'lobby';
   }
 
   updateState(newState) {
+    this._prevStatus = this.status;
     this.status = newState.status;
     this.timer  = newState.timer;
+
+    if (newState.readyCount !== undefined) this.readyCount = newState.readyCount;
+    if (newState.totalCount !== undefined) this.totalCount = newState.totalCount;
+
+    // ── Announcer 이벤트 ──
+    if (this._prevStatus !== this.status) {
+      switch (this.status) {
+        case 'prep':
+          announcer.announce('🎨 준비 단계!', 2500);
+          announcer.startCountdown(3, null);
+          break;
+        case 'hunt':
+          announcer.announce('🔍 사냥 시작!', 2500);
+          announcer.startCountdown(3, null);
+          break;
+        case 'results':
+          announcer.announce('🏆 게임 종료!', 3000);
+          break;
+        case 'lobby':
+          if (this._prevStatus === 'results') {
+            announcer.announce('로비로 돌아갑니다...', 2000);
+          }
+          this.amReady = false;
+          break;
+      }
+    }
 
     // ── 상태 텍스트 ──
     const labels = {
@@ -19,31 +51,59 @@ class GameStateManager {
       hunt:    '🔍 사냥 단계 — 들키지 마세요!',
       results: '🏆 결과 발표'
     };
-    document.getElementById('game-status').textContent = labels[this.status] || this.status;
+    const statusEl = document.getElementById('game-status');
+    if (statusEl) statusEl.textContent = labels[this.status] || this.status;
 
     // ── 타이머 ──
-    const timerEl  = document.getElementById('game-timer');
-    const startBtn = document.getElementById('host-start-btn');
-
+    const timerEl = document.getElementById('game-timer');
     if (this.status !== 'lobby') {
       timerEl.style.display = 'inline-block';
-      if (startBtn) startBtn.style.display = 'none';
       const m = String(Math.floor(this.timer / 60)).padStart(2, '0');
       const s = String(this.timer % 60).padStart(2, '0');
       timerEl.textContent = `${m}:${s}`;
     } else {
       timerEl.style.display = 'none';
-      if (startBtn) startBtn.style.display = 'inline-block';
     }
 
-    // ── 페인트 도구 토글 버튼 가시성 ──
+    // ── 레디 버튼 / 카운트 ──
+    const readyBtn   = document.getElementById('ready-btn');
+    const readyCount = document.getElementById('ready-count');
+    if (this.status === 'lobby') {
+      if (readyBtn)   readyBtn.style.display = 'inline-block';
+      if (readyCount) {
+        readyCount.style.display = 'inline';
+        readyCount.textContent = `${this.readyCount}/${this.totalCount}`;
+      }
+    } else {
+      if (readyBtn)   readyBtn.style.display = 'none';
+      if (readyCount) readyCount.style.display = 'none';
+    }
+
+    // ── 페인트 도구 토글 버튼 ──
     const paintToggle = document.getElementById('paint-toggle');
-    const paintPanel  = document.getElementById('paint-panel');
     if (this.status === 'prep') {
       if (paintToggle) paintToggle.style.display = 'inline-block';
+      // 자동 열기
+      if (this._prevStatus !== 'prep' && typeof paintTool !== 'undefined' && paintTool) {
+        paintTool.openPanel();
+      }
     } else {
       if (paintToggle) paintToggle.style.display = 'none';
-      if (paintPanel)  paintPanel.classList.remove('open');
+      if (typeof paintTool !== 'undefined' && paintTool) {
+        paintTool.closePanel();
+      }
+    }
+  }
+
+  toggleReady() {
+    this.amReady = !this.amReady;
+    const btn = document.getElementById('ready-btn');
+    if (btn) {
+      btn.classList.toggle('is-ready', this.amReady);
+      btn.textContent = this.amReady ? '✔ 준비 완료' : '준비';
+    }
+    if (socket && socket.connected) {
+      socket.emit('toggleReady');
     }
   }
 }

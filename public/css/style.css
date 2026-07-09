@@ -1,5 +1,94 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
+/* ════════════════════════════════════
+   CSS 변수 — 이중 테마
+   ════════════════════════════════════ */
+
+/* ── 다크 (기본) ── */
+[data-theme="dark"] {
+  --bg-primary: #0f1923;
+  --bg-secondary: #1a2634;
+  --bg-card: linear-gradient(135deg, #1a2634 0%, #1e3044 100%);
+  --bg-card-border: rgba(255,255,255,0.06);
+  --bg-card-shadow: rgba(0,0,0,0.4);
+  --bg-input: rgba(255,255,255,0.05);
+  --bg-input-focus: rgba(91,141,239,0.08);
+  --border-input: rgba(255,255,255,0.1);
+  --border-input-focus: #5b8def;
+  --text-primary: #e0e6ed;
+  --text-secondary: #7a8da0;
+  --text-placeholder: #566a7f;
+  --text-heading: #ffffff;
+  --btn-primary-bg: linear-gradient(135deg, #5b8def, #6c63ff);
+  --btn-primary-hover: linear-gradient(135deg, #4a7de0, #5b53f0);
+  --btn-secondary-bg: rgba(255,255,255,0.08);
+  --btn-secondary-color: #a0b4c8;
+  --btn-secondary-border: rgba(255,255,255,0.1);
+  --btn-secondary-hover: rgba(255,255,255,0.14);
+  --btn-danger-bg: rgba(239,68,68,0.15);
+  --btn-danger-color: #f87171;
+  --btn-danger-border: rgba(239,68,68,0.2);
+  --hud-bg: rgba(15, 25, 35, 0.85);
+  --hud-border: rgba(255,255,255,0.08);
+  --hud-text: #c8d6e0;
+  --canvas-bg: #0a1420;
+  --ground-bg: #1a2e40;
+  --grid-color: rgba(100, 140, 170, 0.25);
+  --grid-border: rgba(80, 120, 160, 0.5);
+  --version-color: rgba(255,255,255,0.15);
+  --tool-btn-bg: rgba(255,255,255,0.05);
+  --tool-btn-hover: rgba(255,255,255,0.12);
+  --tool-btn-active-bg: rgba(91, 141, 239, 0.15);
+  --tool-btn-active-border: #5b8def;
+  --link-color: #5b8def;
+  --link-hover: #7aa3f5;
+  --badge-bg: linear-gradient(135deg, #f59e0b, #ef4444);
+}
+
+/* ── 라이트 ── */
+[data-theme="light"] {
+  --bg-primary: #f0f4f8;
+  --bg-secondary: #ffffff;
+  --bg-card: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  --bg-card-border: rgba(0,0,0,0.06);
+  --bg-card-shadow: rgba(0,0,0,0.08);
+  --bg-input: rgba(0,0,0,0.03);
+  --bg-input-focus: rgba(91,141,239,0.06);
+  --border-input: rgba(0,0,0,0.12);
+  --border-input-focus: #5b8def;
+  --text-primary: #2d3748;
+  --text-secondary: #718096;
+  --text-placeholder: #a0aec0;
+  --text-heading: #1a202c;
+  --btn-primary-bg: linear-gradient(135deg, #5b8def, #6c63ff);
+  --btn-primary-hover: linear-gradient(135deg, #4a7de0, #5b53f0);
+  --btn-secondary-bg: rgba(0,0,0,0.04);
+  --btn-secondary-color: #4a5568;
+  --btn-secondary-border: rgba(0,0,0,0.1);
+  --btn-secondary-hover: rgba(0,0,0,0.08);
+  --btn-danger-bg: rgba(239,68,68,0.08);
+  --btn-danger-color: #e53e3e;
+  --btn-danger-border: rgba(239,68,68,0.15);
+  --hud-bg: rgba(255, 255, 255, 0.88);
+  --hud-border: rgba(0,0,0,0.08);
+  --hud-text: #2d3748;
+  --canvas-bg: #d6e6f0;
+  --ground-bg: #cce0ff;
+  --grid-color: rgba(60, 100, 140, 0.18);
+  --grid-border: rgba(60, 100, 140, 0.4);
+  --version-color: rgba(0,0,0,0.2);
+  --tool-btn-bg: rgba(0,0,0,0.04);
+  --tool-btn-hover: rgba(0,0,0,0.08);
+  --tool-btn-active-bg: rgba(91, 141, 239, 0.1);
+  --tool-btn-active-border: #5b8def;
+  --link-color: #5b8def;
+  --link-hover: #4a7de0;
+  --badge-bg: linear-gradient(135deg, #f59e0b, #ef4444);
+}
+
+/* ════════════════════════════════════
+   베이스
+   ════════════════════════════════════ */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -8,8 +97,8 @@
 }
 
 body {
-  background-color: #0f1923;
-  color: #e0e6ed;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   overflow: hidden;
 }
 
@@ -28,28 +117,47 @@ body {
 
 /* ── 인증 / 메뉴 박스 ── */
 .auth-box, .menu-box {
-  background: linear-gradient(135deg, #1a2634 0%, #1e3044 100%);
+  background: var(--bg-card);
   padding: 2.5rem;
   border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.06);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  border: 1px solid var(--bg-card-border);
+  box-shadow: 0 20px 60px var(--bg-card-shadow);
   text-align: center;
   width: 100%;
   max-width: 400px;
+  position: relative;
 }
 
 h1 {
   font-size: 2.8rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--text-heading);
   margin-bottom: 0.4rem;
   letter-spacing: -1px;
 }
 
 .subtitle {
-  color: #7a8da0;
+  color: var(--text-secondary);
   margin-bottom: 2rem;
   font-size: 0.95rem;
+}
+
+/* ── 테마 토글 ── */
+.theme-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  line-height: 1;
+}
+.theme-toggle:hover {
+  background: var(--tool-btn-hover);
 }
 
 /* ── 폼 ── */
@@ -62,22 +170,20 @@ h1 {
 
 input {
   padding: 12px 16px;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--border-input);
   border-radius: 10px;
   font-size: 1rem;
   outline: none;
-  background: rgba(255,255,255,0.05);
-  color: #e0e6ed;
+  background: var(--bg-input);
+  color: var(--text-primary);
   transition: border-color 0.2s, background 0.2s;
 }
-
 input:focus {
-  border-color: #5b8def;
-  background: rgba(91,141,239,0.08);
+  border-color: var(--border-input-focus);
+  background: var(--bg-input-focus);
 }
-
 input::placeholder {
-  color: #566a7f;
+  color: var(--text-placeholder);
 }
 
 .button-group {
@@ -100,29 +206,26 @@ button:active {
 }
 
 .primary-btn {
-  background: linear-gradient(135deg, #5b8def, #6c63ff);
+  background: var(--btn-primary-bg);
   color: white;
 }
 .primary-btn:hover {
-  background: linear-gradient(135deg, #4a7de0, #5b53f0);
+  background: var(--btn-primary-hover);
 }
 
 .secondary-btn {
-  background: rgba(255,255,255,0.08);
-  color: #a0b4c8;
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-color);
+  border: 1px solid var(--btn-secondary-border);
 }
 .secondary-btn:hover {
-  background: rgba(255,255,255,0.14);
+  background: var(--btn-secondary-hover);
 }
 
 .danger-btn {
-  background: rgba(239,68,68,0.15);
-  color: #f87171;
-  border: 1px solid rgba(239,68,68,0.2);
-}
-.danger-btn:hover {
-  background: rgba(239,68,68,0.25);
+  background: var(--btn-danger-bg);
+  color: var(--btn-danger-color);
+  border: 1px solid var(--btn-danger-border);
 }
 
 .message {
@@ -137,23 +240,21 @@ button:active {
   font-size: 0.9rem;
 }
 .auth-link a {
-  color: #5b8def;
+  color: var(--link-color);
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s;
 }
 .auth-link a:hover {
-  color: #7aa3f5;
+  color: var(--link-hover);
   text-decoration: underline;
 }
 
 /* ── 프로필 ── */
-.profile-info {
-  margin-bottom: 2rem;
-}
+.profile-info { margin-bottom: 2rem; }
 .title-badge {
   display: inline-block;
-  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  background: var(--badge-bg);
   color: white;
   padding: 3px 10px;
   border-radius: 12px;
@@ -164,7 +265,7 @@ button:active {
 .stats {
   margin-top: 0.8rem;
   font-size: 0.9rem;
-  color: #7a8da0;
+  color: var(--text-secondary);
 }
 
 /* ── 버전 표기 ── */
@@ -173,22 +274,17 @@ button:active {
   bottom: 15px; right: 20px;
   font-size: 0.8rem;
   font-weight: 600;
-  color: rgba(255,255,255,0.15);
+  color: var(--version-color);
   pointer-events: none;
 }
 
 /* ════════════════════════════════════
    인게임 화면
    ════════════════════════════════════ */
-#game-screen {
-  background: #0a1420;
-}
+#game-screen { background: var(--canvas-bg); }
 
-canvas {
-  display: block;
-}
+canvas { display: block; }
 
-/* ── 게임 UI 오버레이 ── */
 #game-ui {
   position: absolute;
   top: 0; left: 0;
@@ -208,18 +304,18 @@ canvas {
 }
 
 .status-box {
-  background: rgba(15, 25, 35, 0.85);
+  background: var(--hud-bg);
   backdrop-filter: blur(12px);
   padding: 10px 18px;
   border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--hud-border);
   font-weight: 600;
   font-size: 0.95rem;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   pointer-events: auto;
-  color: #c8d6e0;
+  color: var(--hud-text);
 }
 
 .timer-text {
@@ -228,38 +324,48 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 
-.start-btn {
-  padding: 5px 14px;
-  font-size: 0.8rem;
+.ready-btn {
+  padding: 6px 16px;
+  font-size: 0.85rem;
   border-radius: 8px;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+  background: linear-gradient(135deg, #5b8def, #6c63ff);
   color: white;
   border: none;
   font-weight: 700;
+  transition: background 0.2s, transform 0.1s;
 }
-.start-btn:hover {
-  background: linear-gradient(135deg, #16a34a, #15803d);
+.ready-btn:hover {
+  background: linear-gradient(135deg, #4a7de0, #5b53f0);
+}
+.ready-btn.is-ready {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.ready-count {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .hp-box {
-  background: rgba(15, 25, 35, 0.85);
+  background: var(--hud-bg);
   backdrop-filter: blur(12px);
   padding: 10px 18px;
   border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--hud-border);
   font-weight: 600;
   font-size: 0.9rem;
   display: inline-flex;
   align-items: center;
   gap: 10px;
   pointer-events: auto;
-  color: #c8d6e0;
+  color: var(--hud-text);
 }
 
 .hp-bar-container {
   width: 140px;
   height: 10px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(128,128,128,0.2);
   border-radius: 5px;
   overflow: hidden;
 }
@@ -281,10 +387,10 @@ canvas {
 
 .paint-toggle-btn {
   pointer-events: auto;
-  background: rgba(15, 25, 35, 0.85);
+  background: var(--hud-bg);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: #c8d6e0;
+  border: 1px solid var(--hud-border);
+  color: var(--hud-text);
   padding: 8px 20px;
   border-radius: 12px;
   font-weight: 600;
@@ -293,20 +399,19 @@ canvas {
   transition: background 0.2s;
 }
 .paint-toggle-btn:hover {
-  background: rgba(25, 45, 65, 0.9);
+  background: var(--tool-btn-hover);
 }
 
 .paint-panel {
   pointer-events: auto;
-  background: rgba(15, 25, 35, 0.92);
+  background: var(--hud-bg);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--hud-border);
   padding: 14px 20px;
   border-radius: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  /* 기본: 숨김 (닫힘) */
   max-height: 0;
   overflow: hidden;
   opacity: 0;
@@ -328,21 +433,21 @@ canvas {
 }
 
 .tool-btn {
-  background: rgba(255,255,255,0.05);
+  background: var(--tool-btn-bg);
   border: 2px solid transparent;
   font-size: 1.3rem;
   padding: 6px 8px;
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
-  color: #e0e6ed;
+  color: var(--text-primary);
 }
 .tool-btn:hover {
-  background: rgba(255,255,255,0.12);
+  background: var(--tool-btn-hover);
 }
 .tool-btn.active {
-  background: rgba(91, 141, 239, 0.15);
-  border-color: #5b8def;
+  background: var(--tool-btn-active-bg);
+  border-color: var(--tool-btn-active-border);
 }
 
 input[type="range"] {
@@ -352,7 +457,7 @@ input[type="range"] {
 }
 
 input[type="color"] {
-  border: 2px solid rgba(255,255,255,0.1);
+  border: 2px solid var(--border-input);
   border-radius: 8px;
   width: 36px;
   height: 36px;

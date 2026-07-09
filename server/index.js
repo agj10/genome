@@ -83,8 +83,8 @@ io.on('connection', (socket) => {
     room.players[socket.id] = {
       userId: socket.user.id,
       nickname: socket.user.nickname,
-      x: Math.random() * 800 + 100,
-      y: Math.random() * 600 + 100,
+      x: 800 + Math.random() * 400,
+      y: 800 + Math.random() * 400,
       z: 0,
       color: '#ffffff',
       isAlive: true,
@@ -94,7 +94,12 @@ io.on('connection', (socket) => {
     };
 
     // 현재 게임 상태 전송
-    socket.emit('gameState', { status: room.status, timer: room.timer });
+    socket.emit('gameState', {
+      status: room.status,
+      timer: room.timer,
+      readyCount: room.readyPlayers.size,
+      totalCount: Object.keys(room.players).length,
+    });
     io.to(roomId).emit('updatePlayers', room.players);
   });
 
@@ -107,12 +112,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('startGame', () => {
+  socket.on('toggleReady', () => {
     if (!currentRoomId) return;
     const room = rooms.get(currentRoomId);
-    if (room && room.status === 'lobby') {
-      room.startPrep();
-    }
+    if (room) room.toggleReady(socket.id);
   });
 
   socket.on('saveTexture', (textureData) => {
@@ -138,8 +141,9 @@ io.on('connection', (socket) => {
     if (currentRoomId) {
       const room = rooms.get(currentRoomId);
       if (room) {
-        delete room.players[socket.id];
+        room.removePlayer(socket.id);
         io.to(currentRoomId).emit('updatePlayers', room.players);
+        room.broadcastState();
         
         // 방에 아무도 없으면 삭제
         if (Object.keys(room.players).length === 0) {

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -10,6 +10,7 @@
   <!-- 로그인 화면 -->
   <div id="login-screen" class="screen active">
     <div class="auth-box">
+      <button id="theme-toggle" class="theme-toggle" title="테마 변경">🌙</button>
       <h1>GENOME</h1>
       <p class="subtitle">2.5D 숨바꼭질</p>
       
@@ -27,7 +28,7 @@
         <a href="#" id="go-to-register">계정이 없으신가요? 회원가입</a>
       </div>
     </div>
-    <div class="version-text">a3.0</div>
+    <div class="version-text">a4.0</div>
   </div>
 
   <!-- 회원가입 화면 -->
@@ -50,12 +51,13 @@
         <a href="#" id="go-to-login">이미 계정이 있으신가요? 로그인</a>
       </div>
     </div>
-    <div class="version-text">a3.0</div>
+    <div class="version-text">a4.0</div>
   </div>
 
   <!-- 메인 메뉴 화면 -->
   <div id="menu-screen" class="screen">
     <div class="menu-box">
+      <button id="theme-toggle-menu" class="theme-toggle" title="테마 변경">🌙</button>
       <h1>로비</h1>
       
       <div class="profile-info">
@@ -75,7 +77,7 @@
         <button id="logout-btn" class="danger-btn" style="margin-top: 15px;">로그아웃</button>
       </div>
     </div>
-    <div class="version-text">a3.0</div>
+    <div class="version-text">a4.0</div>
   </div>
 
   <!-- 인게임 화면 -->
@@ -88,7 +90,8 @@
         <div class="status-box">
           <span id="game-status">로비 대기 중</span>
           <span id="game-timer" class="timer-text" style="display: none;">00:00</span>
-          <button id="host-start-btn" class="start-btn">▶ 시작</button>
+          <button id="ready-btn" class="ready-btn">준비</button>
+          <span id="ready-count" class="ready-count">0/0</span>
         </div>
         <div class="hp-box" id="hp-box" style="display: none;">
           HP: <div class="hp-bar-container"><div id="hp-bar-fill" class="hp-bar-fill"></div></div>
@@ -101,8 +104,9 @@
         <div id="paint-panel" class="paint-panel">
           <div class="tools-row">
             <button id="tool-pen" class="tool-btn active" title="펜">✏️</button>
-            <button id="tool-eraser" class="tool-btn" title="지우개">🧹</button>
-            <button id="tool-picker" class="tool-btn" title="스포이드">💧</button>
+            <button id="tool-eraser" class="tool-btn" title="지우개">🧽</button>
+            <button id="tool-fill" class="tool-btn" title="채우기">🪣</button>
+            <button id="tool-picker" class="tool-btn" title="스포이드">💉</button>
             <button id="tool-undo" class="tool-btn" title="되돌리기">↩️</button>
             <button id="tool-redo" class="tool-btn" title="다시 실행">↪️</button>
           </div>
@@ -114,13 +118,15 @@
       </div>
     </div>
     
-    <div class="version-text">a3.0</div>
+    <div class="version-text">a4.0</div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/theme.js"></script>
   <script src="/js/auth.js"></script>
   <script src="/js/network.js"></script>
   <script src="/js/camera.js"></script>
+  <script src="/js/announcer.js"></script>
   <script src="/js/paintTool.js"></script>
   <script src="/js/player.js"></script>
   <script src="/js/gameState.js"></script>

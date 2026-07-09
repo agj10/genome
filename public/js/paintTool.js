@@ -1,6 +1,6 @@
 // ────────────────────────────────────
 // PaintTool — 오프스크린 캔버스 드로잉
-// Camera 좌표 변환을 거쳐서 사용
+// 도구: 펜, 지우개, 스포이드, 채우기
 // ────────────────────────────────────
 class PaintTool {
   constructor(size) {
@@ -20,7 +20,7 @@ class PaintTool {
     this.ctx.lineWidth = 2;
     this.ctx.stroke();
 
-    this.currentTool = 'pen';  // pen | eraser | picker
+    this.currentTool = 'pen';  // pen | eraser | picker | fill
     this.currentColor = '#000000';
     this.currentSize = 4;
 
@@ -33,7 +33,7 @@ class PaintTool {
     this.historyStep = -1;
     this.saveHistory();
 
-    this.panelOpen = false;  // 패널 토글 상태
+    this.panelOpen = false;
 
     this.setupUI();
   }
@@ -42,24 +42,30 @@ class PaintTool {
     this.btnPen     = document.getElementById('tool-pen');
     this.btnEraser  = document.getElementById('tool-eraser');
     this.btnPicker  = document.getElementById('tool-picker');
+    this.btnFill    = document.getElementById('tool-fill');
     this.btnUndo    = document.getElementById('tool-undo');
     this.btnRedo    = document.getElementById('tool-redo');
     this.inputSize  = document.getElementById('tool-size');
     this.inputColor = document.getElementById('tool-color');
 
-    this.btnPen.addEventListener('click',    () => this.setTool('pen'));
-    this.btnEraser.addEventListener('click', () => this.setTool('eraser'));
-    this.btnPicker.addEventListener('click', () => this.setTool('picker'));
-    this.btnUndo.addEventListener('click',   () => this.undo());
-    this.btnRedo.addEventListener('click',   () => this.redo());
+    if (this.btnPen)    this.btnPen.addEventListener('click',    () => this.setTool('pen'));
+    if (this.btnEraser) this.btnEraser.addEventListener('click', () => this.setTool('eraser'));
+    if (this.btnPicker) this.btnPicker.addEventListener('click', () => this.setTool('picker'));
+    if (this.btnFill)   this.btnFill.addEventListener('click',   () => this.setTool('fill'));
+    if (this.btnUndo)   this.btnUndo.addEventListener('click',   () => this.undo());
+    if (this.btnRedo)   this.btnRedo.addEventListener('click',   () => this.redo());
 
-    this.inputSize.addEventListener('input', (e) => {
-      this.currentSize = Number(e.target.value);
-    });
-    this.inputColor.addEventListener('input', (e) => {
-      this.currentColor = e.target.value;
-      if (this.currentTool === 'eraser') this.setTool('pen');
-    });
+    if (this.inputSize) {
+      this.inputSize.addEventListener('input', (e) => {
+        this.currentSize = Number(e.target.value);
+      });
+    }
+    if (this.inputColor) {
+      this.inputColor.addEventListener('input', (e) => {
+        this.currentColor = e.target.value;
+        if (this.currentTool === 'eraser') this.setTool('pen');
+      });
+    }
 
     // 패널 토글 버튼
     const toggleBtn = document.getElementById('paint-toggle');
@@ -74,18 +80,27 @@ class PaintTool {
     const btn   = document.getElementById('paint-toggle');
     if (this.panelOpen) {
       panel.classList.add('open');
-      btn.textContent = '🎨 닫기';
+      if (btn) btn.textContent = '🎨 닫기';
     } else {
       panel.classList.remove('open');
-      btn.textContent = '🎨 그리기';
+      if (btn) btn.textContent = '🎨 그리기';
     }
+  }
+
+  openPanel() {
+    if (!this.panelOpen) this.togglePanel();
+  }
+
+  closePanel() {
+    if (this.panelOpen) this.togglePanel();
   }
 
   setTool(tool) {
     this.currentTool = tool;
-    this.btnPen.classList.toggle('active',    tool === 'pen');
-    this.btnEraser.classList.toggle('active', tool === 'eraser');
-    this.btnPicker.classList.toggle('active', tool === 'picker');
+    const btns = { pen: this.btnPen, eraser: this.btnEraser, picker: this.btnPicker, fill: this.btnFill };
+    for (const [name, btn] of Object.entries(btns)) {
+      if (btn) btn.classList.toggle('active', name === tool);
+    }
   }
 
   // ── History ──
@@ -125,12 +140,16 @@ class PaintTool {
     img.src = this.history[this.historyStep];
   }
 
-  // ── Drawing ── 좌표는 이미 텍스처 로컬 좌표(0~size)로 변환된 값
+  // ── Drawing ──
 
   beginStroke(lx, ly) {
     if (this.currentTool === 'picker') {
       this._pickColor(lx, ly);
       this.setTool('pen');
+      return;
+    }
+    if (this.currentTool === 'fill') {
+      this._floodFill(Math.floor(lx), Math.floor(ly));
       return;
     }
     this.isDrawing = true;
@@ -157,6 +176,7 @@ class PaintTool {
     this.ctx.moveTo(this.lastX, this.lastY);
     this.ctx.lineTo(lx, ly);
     this.ctx.stroke();
+    this.ctx.globalCompositeOperation = 'source-over';
 
     this.lastX = lx;
     this.lastY = ly;
@@ -188,8 +208,86 @@ class PaintTool {
     if (px[3] > 0) {
       const hex = '#' + ((1 << 24) | (px[0] << 16) | (px[1] << 8) | px[2]).toString(16).slice(1);
       this.currentColor = hex;
-      this.inputColor.value = hex;
+      if (this.inputColor) this.inputColor.value = hex;
     }
+  }
+
+  // ── Flood Fill (BFS) ──
+  _floodFill(startX, startY) {
+    if (startX < 0 || startX >= this.size || startY < 0 || startY >= this.size) return;
+
+    const imageData = this.ctx.getImageData(0, 0, this.size, this.size);
+    const data = imageData.data;
+    const w = this.size;
+    const h = this.size;
+
+    // 타겟 색상 (시작점의 색)
+    const idx = (startY * w + startX) * 4;
+    const targetR = data[idx];
+    const targetG = data[idx + 1];
+    const targetB = data[idx + 2];
+    const targetA = data[idx + 3];
+
+    // 채울 색상
+    const fillColor = this._hexToRgb(this.currentColor);
+    if (!fillColor) return;
+
+    // 이미 같은 색이면 무시
+    if (targetR === fillColor.r && targetG === fillColor.g && targetB === fillColor.b && targetA === 255) return;
+
+    const tolerance = 30;
+    const visited = new Uint8Array(w * h);
+    const queue = [startX + startY * w];
+    visited[startX + startY * w] = 1;
+
+    const matchesTarget = (i) => {
+      const r = data[i * 4];
+      const g = data[i * 4 + 1];
+      const b = data[i * 4 + 2];
+      const a = data[i * 4 + 3];
+      return Math.abs(r - targetR) <= tolerance &&
+             Math.abs(g - targetG) <= tolerance &&
+             Math.abs(b - targetB) <= tolerance &&
+             Math.abs(a - targetA) <= tolerance;
+    };
+
+    while (queue.length > 0) {
+      const pos = queue.pop();
+      const px = pos % w;
+      const py = Math.floor(pos / w);
+
+      data[pos * 4]     = fillColor.r;
+      data[pos * 4 + 1] = fillColor.g;
+      data[pos * 4 + 2] = fillColor.b;
+      data[pos * 4 + 3] = 255;
+
+      // 4방향
+      const neighbors = [
+        px > 0     ? pos - 1 : -1,
+        px < w - 1 ? pos + 1 : -1,
+        py > 0     ? pos - w : -1,
+        py < h - 1 ? pos + w : -1,
+      ];
+
+      for (const n of neighbors) {
+        if (n >= 0 && !visited[n] && matchesTarget(n)) {
+          visited[n] = 1;
+          queue.push(n);
+        }
+      }
+    }
+
+    this.ctx.putImageData(imageData, 0, 0);
+    this.saveHistory();
+  }
+
+  _hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16),
+    } : null;
   }
 
   getTextureData() {
