@@ -515,7 +515,7 @@ input[type="color"] {
   top: 100%;
   left: 0;
   right: 0;
-  background: var(--bg-panel);
+  background: var(--bg-card);
   border: 1px solid var(--border-input);
   border-top: none;
   border-bottom-left-radius: 8px;
@@ -536,8 +536,8 @@ input[type="color"] {
   transition: background 0.1s;
 }
 .custom-option:hover {
-  background: var(--primary-color);
-  color: #fff;
+  background: var(--tool-btn-active-bg);
+  color: var(--text-heading);
 }
 .custom-option.selected {
   background: var(--bg-input);

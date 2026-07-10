@@ -61,8 +61,8 @@ window.addEventListener('mouseup', (e) => {
 window.addEventListener('mousemove', (e) => {
   if (isRightMouseDown) {
     cameraPitchOffset += e.movementY * 1.5;
-    if (cameraPitchOffset < -800) cameraPitchOffset = -800;
-    if (cameraPitchOffset > 800) cameraPitchOffset = 800;
+    if (cameraPitchOffset < -200) cameraPitchOffset = -200;
+    if (cameraPitchOffset > 400) cameraPitchOffset = 400;
   }
 });
 window.addEventListener('contextmenu', e => e.preventDefault());
@@ -422,8 +422,8 @@ function update(dt) {
           const halfSize = obj.size / 2;
           const left = obj.x - halfSize;
           const right = obj.x + halfSize;
-          const top = obj.y - 10;
-          const bottom = obj.y + 10;
+          const top = obj.y - 0.1;
+          const bottom = obj.y + 0.1;
           
           if (localPlayer.x + r > left && localPlayer.x - r < right &&
               localPlayer.y + r > top && localPlayer.y - r < bottom) {
@@ -450,7 +450,7 @@ function update(dt) {
       for (const obj of mapObjects) {
         // AABB 체크 (두께는 얇게)
         if (Math.abs(localPlayer.x - obj.x) < obj.size/2 + r &&
-            Math.abs(localPlayer.y - obj.y) < 10 + r) {
+            Math.abs(localPlayer.y - obj.y) < 0.1 + r) {
           // 오브젝트 위에 있는지
           if (localPlayer.z >= obj.height - Math.abs(localPlayer.vz*dt)*2) {
             groundHeight = Math.max(groundHeight, obj.height);
