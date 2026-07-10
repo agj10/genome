@@ -146,49 +146,23 @@ function init3D() {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(0xe6f0fa); // 만약을 위한 배경색
+  renderer.setClearColor(0x87ceeb); // 맑고 선명한 하늘색
+
+  // 현대적 게임 엔진 수준의 고품질 톤 매핑 (화사함/대비 증가)
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
 
   scene = new THREE.Scene();
   
-  // 하늘 (Gradient Skybox)
-  const vertexShader = `
-    varying vec3 vWorldPosition;
-    void main() {
-      vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-      vWorldPosition = worldPosition.xyz;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `;
-  const fragmentShader = `
-    uniform vec3 topColor;
-    uniform vec3 bottomColor;
-    varying vec3 vWorldPosition;
-    void main() {
-      float h = normalize(vWorldPosition).y;
-      gl_FragColor = vec4(mix(bottomColor, topColor, max(h, 0.0)), 1.0);
-    }
-  `;
-  const uniforms = {
-    topColor: { value: new THREE.Color(0x3178c6) }, // 진한 파랑
-    bottomColor: { value: new THREE.Color(0xdceeff) } // 옅은 하늘색
-  };
-  const skyGeo = new THREE.SphereGeometry(4000, 32, 15);
-  const skyMat = new THREE.ShaderMaterial({
-    vertexShader: vertexShader,
-    fragmentShader: fragmentShader,
-    uniforms: uniforms,
-    side: THREE.BackSide
-  });
-  scene.add(new THREE.Mesh(skyGeo, skyMat));
-
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 5000);
   
-  // 조명 세팅 (유니티 스타일: 백색 환경광 + 백색 직사광)
-  ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // 너무 밝지 않게 조절
+  // 조명 세팅 (유니티 스타일: 매우 화사한 환경광 + 강력하고 깊은 그림자 생성 직사광)
+  ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
   scene.add(ambientLight);
 
-  dirLight = new THREE.DirectionalLight(0xffffff, 1.5); // 강력한 태양광
-  dirLight.position.set(2000, 3000, 2000);
+  dirLight = new THREE.DirectionalLight(0xffffff, 2.5); // 강력한 태양광
+  // 각도를 비스듬히 하여 그림자가 길게 뻗게 만듦 (셰이더 효과 강조)
+  dirLight.position.set(1500, 1500, 500); 
   dirLight.castShadow = true;
   dirLight.shadow.mapSize.width = 2048;
   dirLight.shadow.mapSize.height = 2048;
@@ -208,40 +182,26 @@ function init3D() {
   sunMesh.position.copy(dirLight.position);
   scene.add(sunMesh);
 
-  // 바닥 텍스처 생성 (그리드 무늬)
+  // 바닥 텍스처 생성 (그리드 무늬 고정)
   gridCanvas = document.createElement('canvas');
   gridCanvas.width = 512; gridCanvas.height = 512;
   gCtx = gridCanvas.getContext('2d');
+  
+  gCtx.fillStyle = '#2d3748';
+  gCtx.fillRect(0, 0, 512, 512);
+  gCtx.strokeStyle = '#4a5568';
+  gCtx.lineWidth = 4;
+  gCtx.beginPath();
+  for (let i = 0; i <= 512; i += 64) {
+    gCtx.moveTo(i, 0); gCtx.lineTo(i, 512);
+    gCtx.moveTo(0, i); gCtx.lineTo(512, i);
+  }
+  gCtx.stroke();
+  
   gridTex = new THREE.CanvasTexture(gridCanvas);
   gridTex.wrapS = THREE.RepeatWrapping;
   gridTex.wrapT = THREE.RepeatWrapping;
   gridTex.repeat.set(MAP.width / 256, MAP.height / 256);
-  
-  window.updateGroundTexture = function(theme) {
-    let bgColor = '#2d3748';
-    let lineColor = '#4a5568';
-    
-    if (theme === 'mansion') { bgColor = '#5C4033'; lineColor = '#3e2723'; }
-    else if (theme === 'sewer') { bgColor = '#2F4F4F'; lineColor = '#1a2f2f'; }
-    else if (theme === 'backrooms') { bgColor = '#e6cc80'; lineColor = '#ccaa44'; }
-    else if (theme === 'country') { bgColor = '#4F8E3A'; lineColor = '#355E2B'; }
-    else if (theme === 'penguin') { bgColor = '#E0FFFF'; lineColor = '#B0E0E6'; }
-    else if (theme === 'sugarland') { bgColor = '#FFC0CB'; lineColor = '#FF69B4'; }
-    else if (theme === 'osaka') { bgColor = '#1A1A1A'; lineColor = '#333333'; }
-
-    gCtx.fillStyle = bgColor;
-    gCtx.fillRect(0, 0, 512, 512);
-    gCtx.strokeStyle = lineColor;
-    gCtx.lineWidth = 4;
-    gCtx.beginPath();
-    for (let i = 0; i <= 512; i += 64) {
-      gCtx.moveTo(i, 0); gCtx.lineTo(i, 512);
-      gCtx.moveTo(0, i); gCtx.lineTo(512, i);
-    }
-    gCtx.stroke();
-    gridTex.needsUpdate = true;
-  };
-  window.updateGroundTexture('mansion');
 
   // 바닥 생성
   const groundGeo = new THREE.PlaneGeometry(MAP.width * 2, MAP.height * 2);
@@ -594,13 +554,7 @@ function render3D() {
     dirLight.target.updateMatrixWorld();
   }
 
-  // 테마 바닥 렌더링 동기화
-  if (window.gameStateManager && window.gameStateManager.settings) {
-    if (window.currentTheme !== window.gameStateManager.settings.mapTheme) {
-      window.currentTheme = window.gameStateManager.settings.mapTheme;
-      window.updateGroundTexture(window.currentTheme);
-    }
-  }
+  // 테마 바닥 렌더링 동기화 제거 (고정 그리드 사용)
 
   // 엔티티 정리 및 메쉬 동기화
   const activeIds = new Set();

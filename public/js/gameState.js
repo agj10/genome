@@ -11,6 +11,7 @@ class GameStateManager {
     this.totalCount = 0;
     this.amReady = false;
     this._prevStatus = 'lobby';
+    this.uiDelayed = false;
   }
 
   updateState(newState) {
@@ -21,8 +22,17 @@ class GameStateManager {
     if (newState.readyCount !== undefined) this.readyCount = newState.readyCount;
     if (newState.totalCount !== undefined) this.totalCount = newState.totalCount;
 
-    // ── Announcer 이벤트 ──
     if (this._prevStatus !== this.status) {
+      if (this.status === 'prep' || this.status === 'hunt') {
+        this.uiDelayed = true;
+        setTimeout(() => {
+          this.uiDelayed = false;
+          this.updateUI();
+        }, 3000);
+      } else {
+        this.uiDelayed = false;
+      }
+
       switch (this.status) {
         case 'prep':
           announcer.announce('🎨 준비 단계!', 2500);
@@ -44,6 +54,12 @@ class GameStateManager {
       }
     }
 
+    this.updateUI();
+  }
+
+  updateUI() {
+    const displayStatus = this.uiDelayed ? this._prevStatus : this.status;
+
     // ── 상태 텍스트 ──
     const labels = {
       lobby:   '로비 대기 중',
@@ -52,23 +68,23 @@ class GameStateManager {
       results: '🏆 결과 발표'
     };
     const statusEl = document.getElementById('game-status');
-    if (statusEl) statusEl.textContent = labels[this.status] || this.status;
+    if (statusEl) statusEl.textContent = labels[displayStatus] || displayStatus;
 
     // ── 타이머 ──
     const timerEl = document.getElementById('game-timer');
-    if (this.status !== 'lobby') {
+    if (displayStatus !== 'lobby') {
       timerEl.style.display = 'inline-block';
-      const m = String(Math.floor(this.timer / 60)).padStart(2, '0');
-      const s = String(this.timer % 60).padStart(2, '0');
-      timerEl.textContent = `${m}:${s}`;
+      let m = Math.floor(this.timer / 60);
+      let s = this.timer % 60;
+      timerEl.textContent = `${m}:${s.toString().padStart(2, '0')}`;
     } else {
       timerEl.style.display = 'none';
     }
 
-    // ── 레디 버튼 / 카운트 ──
-    const readyBtn   = document.getElementById('ready-btn');
+    // ── 레디 카운트 & 버튼 ──
+    const readyBtn = document.getElementById('ready-btn');
     const readyCount = document.getElementById('ready-count');
-    if (this.status === 'lobby') {
+    if (displayStatus === 'lobby') {
       if (readyBtn)   readyBtn.style.display = 'inline-block';
       if (readyCount) {
         readyCount.style.display = 'inline';
@@ -81,10 +97,10 @@ class GameStateManager {
 
     // ── 페인트 도구 토글 버튼 ──
     const paintToggle = document.getElementById('paint-toggle');
-    if (this.status === 'prep') {
+    if (displayStatus === 'prep') {
       if (paintToggle) paintToggle.style.display = 'inline-block';
       // 자동 열기
-      if (this._prevStatus !== 'prep' && typeof paintTool !== 'undefined' && paintTool) {
+      if (this._prevStatus !== 'prep' && typeof paintTool !== 'undefined' && paintTool && !this.uiDelayed) {
         paintTool.openPanel();
       }
     } else {
