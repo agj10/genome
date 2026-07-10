@@ -57,7 +57,7 @@ app.get('/api/quick-room', (req, res) => {
 
 // 방 만들기 (설정 적용)
 app.post('/api/create-room', (req, res) => {
-  const { roomId, isPublic, password, maxPlayers, gameMode, mapTheme } = req.body;
+  const { roomId, isPublic, password, maxPlayers, gameMode, mapTheme, prepTime, huntTime } = req.body;
   if (rooms.has(roomId)) {
     return res.status(400).json({ error: '이미 존재하는 방입니다.' });
   }
@@ -69,6 +69,8 @@ app.post('/api/create-room', (req, res) => {
   room.maxPlayers = maxPlayers || 10;
   room.gameMode = gameMode || 'normal';
   room.mapTheme = mapTheme || 'mansion';
+  room.prepTime = prepTime || 60;
+  room.huntTime = huntTime || 180;
   rooms.set(roomId, room);
   
   res.json({ success: true, roomId });

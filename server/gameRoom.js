@@ -1,5 +1,3 @@
-const PREP_TIME = 60;
-const HUNT_TIME = 180;
 const RESULT_TIME = 10;
 
 class GameRoom {
@@ -18,6 +16,8 @@ class GameRoom {
     this.maxPlayers = settings.maxPlayers || 10;
     this.gameMode = settings.gameMode || 'normal';
     this.mapTheme = settings.mapTheme || 'mansion';
+    this.prepTime = settings.prepTime || 60;
+    this.huntTime = settings.huntTime || 180;
     
     this.mapObjects = this.generateMapObjects();
     this.decoys = {}; // { decoyId: { ownerId, x, y, shape, textureData } }
@@ -29,6 +29,8 @@ class GameRoom {
     if (settings.password !== undefined) this.password = settings.password;
     if (settings.maxPlayers !== undefined) this.maxPlayers = settings.maxPlayers;
     if (settings.gameMode !== undefined) this.gameMode = settings.gameMode;
+    if (settings.prepTime !== undefined) this.prepTime = settings.prepTime;
+    if (settings.huntTime !== undefined) this.huntTime = settings.huntTime;
     if (settings.mapTheme !== undefined && settings.mapTheme !== this.mapTheme) {
       this.mapTheme = settings.mapTheme;
       this.mapObjects = this.generateMapObjects();
@@ -131,7 +133,9 @@ class GameRoom {
         isPublic: this.isPublic,
         maxPlayers: this.maxPlayers,
         gameMode: this.gameMode,
-        mapTheme: this.mapTheme
+        mapTheme: this.mapTheme,
+        prepTime: this.prepTime,
+        huntTime: this.huntTime
       }
     });
   }
@@ -169,7 +173,7 @@ class GameRoom {
 
   startPrep() {
     this.status = 'prep';
-    this.timer = PREP_TIME;
+    this.timer = this.prepTime;
     this.readyPlayers.clear();
     this.decoys = {}; // 디코이 초기화
     this.assignRoles();
@@ -180,20 +184,26 @@ class GameRoom {
       p.shape = 'circle'; // 기본 모양
     });
 
-    // 시작 시 맵 오브젝트 전송
-    this.io.to(this.roomId).emit('mapData', this.mapObjects);
-
     this.broadcastState();
     this.io.to(this.roomId).emit('updatePlayers', this.players);
-    this.io.to(this.roomId).emit('updateDecoys', this.decoys);
-    this.startTimer(() => this.startHunt());
+    
+    // 카운트다운 3초 동안 타이머 지연
+    if (this.intervalId) clearInterval(this.intervalId);
+    setTimeout(() => {
+      this.startTimer(() => this.startHunt());
+    }, 3000);
   }
 
   startHunt() {
     this.status = 'hunt';
-    this.timer = HUNT_TIME;
+    this.timer = this.huntTime;
     this.broadcastState();
-    this.startTimer(() => this.startResults());
+    
+    // 카운트다운 3초 동안 타이머 지연
+    if (this.intervalId) clearInterval(this.intervalId);
+    setTimeout(() => {
+      this.startTimer(() => this.startResults());
+    }, 3000);
   }
 
   startResults() {

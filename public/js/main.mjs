@@ -61,6 +61,8 @@ window.addEventListener('mouseup', (e) => {
 window.addEventListener('mousemove', (e) => {
   if (isRightMouseDown) {
     cameraPitchOffset += e.movementY * 1.5;
+    if (cameraPitchOffset < -800) cameraPitchOffset = -800;
+    if (cameraPitchOffset > 800) cameraPitchOffset = 800;
   }
 });
 window.addEventListener('contextmenu', e => e.preventDefault());
@@ -145,31 +147,23 @@ function init3D() {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(0xe6f0fa); // 맑고 밝은 대낮 하늘
+  renderer.setClearColor(0x1a2e40); // 기본 배경색
 
   scene = new THREE.Scene();
-  // 안개(fog) 제거 (유저 요청)
 
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 5000);
   
-  // 조명 세팅 (백색광 - 쨍한 낮)
-  ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+  // 조명 세팅
+  ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambientLight);
 
-  const pointLight = new THREE.PointLight(0xffeedd, 2.0, 3000);
-  pointLight.position.set(MAP.width / 2, 800, MAP.height / 2);
+  const pointLight = new THREE.PointLight(0xffddaa, 1.5, 2000);
+  pointLight.position.set(MAP.width / 2, 400, MAP.height / 2);
   pointLight.castShadow = true;
   scene.add(pointLight);
 
-  // 태양 형상 (광원 위치에 배치)
-  const sunGeo = new THREE.SphereGeometry(80, 32, 32);
-  const sunMat = new THREE.MeshBasicMaterial({ color: 0xffeedd });
-  const sunMesh = new THREE.Mesh(sunGeo, sunMat);
-  sunMesh.position.copy(pointLight.position);
-  scene.add(sunMesh);
-
-  dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-  dirLight.position.set(500, 1500, 500);
+  dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(500, 1000, 500);
   dirLight.castShadow = true;
   dirLight.shadow.mapSize.width = 2048;
   dirLight.shadow.mapSize.height = 2048;
@@ -221,8 +215,8 @@ function init3D() {
   ssaoPass.maxDistance = 0.1;
   composer.addPass(ssaoPass);
 
-  // 2. Bloom (빛 번짐 - 태양과 하이라이트 발광 효과)
-  bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.5, 0.95);
+  // 2. Bloom (빛 번짐)
+  bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.4, 0.85);
   composer.addPass(bloomPass);
 
   // 3. Bokeh (피사계 심도)
@@ -324,23 +318,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const maxPlayers = parseInt(document.getElementById('create-room-max').value);
       const gameMode = document.getElementById('create-room-mode').value;
       const mapTheme = document.getElementById('create-room-map').value;
-      const prepTime = parseInt(document.getElementById('create-room-prep-time').value);
-      const huntTime = parseInt(document.getElementById('create-room-hunt-time').value);
 
       if (currentRoomId) {
         if (socket) {
-          socket.emit('updateRoomSettings', { isPublic, password, maxPlayers, gameMode, mapTheme, prepTime, huntTime });
+          socket.emit('updateRoomSettings', { isPublic, password, maxPlayers, gameMode, mapTheme });
         }
         createModal.style.display = 'none';
         return;
       }
+
+
 
       const roomId = generateRoomCode();
       try {
         const res = await fetch('/api/create-room', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ roomId, isPublic, password, maxPlayers, gameMode, mapTheme, prepTime, huntTime })
+          body: JSON.stringify({ roomId, isPublic, password, maxPlayers, gameMode, mapTheme })
         });
         const data = await res.json();
         if (data.success) {
@@ -361,8 +355,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('create-room-mode').value = window.gameStateManager.settings.gameMode || 'normal';
         document.getElementById('create-room-map').value = window.gameStateManager.settings.mapTheme || 'mansion';
         document.getElementById('create-room-max').value = window.gameStateManager.settings.maxPlayers || 10;
-        document.getElementById('create-room-prep-time').value = window.gameStateManager.settings.prepTime || 60;
-        document.getElementById('create-room-hunt-time').value = window.gameStateManager.settings.huntTime || 180;
       }
       document.getElementById('create-room-modal').querySelector('h2').textContent = '방 설정 변경';
       document.getElementById('create-room-confirm-btn').textContent = '변경 저장';
@@ -430,15 +422,14 @@ function update(dt) {
           const halfSize = obj.size / 2;
           const left = obj.x - halfSize;
           const right = obj.x + halfSize;
-          const top = obj.y - 0.1;
-          const bottom = obj.y + 0.1;
+          const top = obj.y - halfSize;
+          const bottom = obj.y + halfSize;
           
-          // Y축 반경 r을 무시하여 충돌 두께를 0으로 만듦
           if (localPlayer.x + r > left && localPlayer.x - r < right &&
-              Math.abs(localPlayer.y - obj.y) < 0.1) {
+              localPlayer.y + r > top && localPlayer.y - r < bottom) {
             
             if (oldX + r <= left || oldX - r >= right) localPlayer.x = oldX;
-            if (Math.abs(oldY - obj.y) >= 0.1) localPlayer.y = oldY;
+            if (oldY + r <= top || oldY - r >= bottom) localPlayer.y = oldY;
           }
         }
       }
@@ -457,9 +448,9 @@ function update(dt) {
     let groundHeight = 0;
     if (mapObjects) {
       for (const obj of mapObjects) {
-        // Y축 두께 완전 0으로 판정
+        // AABB 체크 (원형이지만 박스로 취급)
         if (Math.abs(localPlayer.x - obj.x) < obj.size/2 + r &&
-            Math.abs(localPlayer.y - obj.y) < 0.1) {
+            Math.abs(localPlayer.y - obj.y) < obj.size/2 + r) {
           // 오브젝트 위에 있는지
           if (localPlayer.z >= obj.height - Math.abs(localPlayer.vz*dt)*2) {
             groundHeight = Math.max(groundHeight, obj.height);
@@ -487,21 +478,7 @@ function update(dt) {
   if (localPlayer) {
     // 비스듬히 앞을 내려다보는 뷰 (거리: targetZoom)
     const camOffsetX = 0;
-    let camOffsetY = (targetZoom * 0.5) + (cameraPitchOffset * 0.5);
-    
-    // 바닥 관통 방지: 카메라의 절대 높이(Y)가 10 밑으로 내려가지 않도록 제한
-    if (localPlayer.z + camOffsetY < 10) {
-      camOffsetY = 10 - localPlayer.z;
-      cameraPitchOffset = (camOffsetY - targetZoom * 0.5) * 2;
-    }
-    
-    // 최대 높이 제한 (카메라가 너무 위로 솟구치지 않도록)
-    const maxOffsetY = targetZoom * 1.2;
-    if (camOffsetY > maxOffsetY) {
-      camOffsetY = maxOffsetY;
-      cameraPitchOffset = (camOffsetY - targetZoom * 0.5) * 2;
-    }
-
+    const camOffsetY = (targetZoom * 0.5) + (cameraPitchOffset * 0.5);
     const camOffsetZ = targetZoom * 0.9;
 
     camera.position.x += ((localPlayer.x + camOffsetX) - camera.position.x) * 5 * dt;
@@ -593,6 +570,8 @@ function render3D() {
       }
       const mesh = meshCache[obj.id];
       mesh.position.set(obj.x, obj.height/2, obj.y);
+      // 완벽한 빌보드: 카메라 회전과 동일하게 맞춤
+      mesh.quaternion.copy(camera.quaternion);
     });
   }
 
@@ -625,6 +604,9 @@ function render3D() {
         mesh.material.needsUpdate = true;
       });
     }
+
+    // 완벽한 빌보드 (항상 카메라 방향)
+    mesh.quaternion.copy(camera.quaternion);
   }
 
   // 3. Players
@@ -685,6 +667,9 @@ function render3D() {
     } else if (!mesh.material.map) {
       mesh.material.color.setHex(p.role === 'seeker' ? 0xfc8181 : 0xe8ecf1);
     }
+
+    // 완벽한 빌보드 (항상 카메라 방향)
+    mesh.quaternion.copy(camera.quaternion);
   }
 
   // 화면에 없는 엔티티 삭제
