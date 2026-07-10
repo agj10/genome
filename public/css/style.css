@@ -592,3 +592,62 @@ input[type="color"] {
   from { opacity: 0; transform: translateY(30px) scale(0.95); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* 방 목록 UI 스타일 */
+.room-list-container {
+  background: rgba(45, 55, 72, 0.5);
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.room-list {
+  max-height: 150px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.room-list::-webkit-scrollbar {
+  width: 6px;
+}
+.room-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+.room-item {
+  background: rgba(26, 32, 44, 0.8);
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+.room-item:hover {
+  background: rgba(49, 130, 206, 0.4);
+  border-color: rgba(49, 130, 206, 0.8);
+  transform: translateX(5px);
+}
+.room-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.room-item-title {
+  color: #fff;
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+.room-item-meta {
+  color: #a0aec0;
+  font-size: 0.8rem;
+}
+.room-item-players {
+  color: #63b3ed;
+  font-weight: bold;
+  font-size: 0.9rem;
+}

@@ -356,6 +356,61 @@ function startGame() {
 
 // ── UI 이벤트 리스너 ──
 document.addEventListener('DOMContentLoaded', () => {
+  // 1. URL 라우팅 (새로고침 시 방 자동 입장)
+  const pathParts = window.location.pathname.split('/');
+  if (pathParts.length === 3 && pathParts[1] === 'rooms') {
+    const roomId = pathParts[2];
+    if (roomId) {
+      window.joinRoom(roomId);
+    }
+  }
+
+  // 2. 방 목록 새로고침 로직
+  const fetchRoomList = async () => {
+    const listEl = document.getElementById('room-list');
+    if (!listEl) return;
+    try {
+      listEl.innerHTML = '<p style="text-align: center; color: #a0aec0; font-size: 0.9rem;">불러오는 중...</p>';
+      const res = await fetch('/api/rooms');
+      const rooms = await res.json();
+      
+      if (rooms.length === 0) {
+        listEl.innerHTML = '<p style="text-align: center; color: #a0aec0; font-size: 0.9rem;">현재 대기 중인 방이 없습니다.</p>';
+        return;
+      }
+      
+      listEl.innerHTML = '';
+      rooms.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'room-item';
+        
+        const modeKr = r.gameMode === 'infection' ? '🦠 감염' : (r.gameMode === 'double' ? '🤝 더블' : '🎮 노멀');
+        const themeKr = r.mapTheme === 'mansion' ? '저택' : (r.mapTheme === 'backrooms' ? '백룸' : (r.mapTheme === 'sewer' ? '하수구' : (r.mapTheme === 'country' ? '숲' : r.mapTheme)));
+        
+        item.innerHTML = `
+          <div class="room-item-info">
+            <span class="room-item-title">방 코드: ${r.roomId}</span>
+            <span class="room-item-meta">${modeKr} | 🗺️ ${themeKr}</span>
+          </div>
+          <span class="room-item-players">${r.playerCount}/${r.maxPlayers} 명</span>
+        `;
+        item.addEventListener('click', () => {
+          window.joinRoom(r.roomId);
+        });
+        listEl.appendChild(item);
+      });
+    } catch (e) {
+      listEl.innerHTML = '<p style="text-align: center; color: #fc8181; font-size: 0.9rem;">방 목록을 불러오지 못했습니다.</p>';
+    }
+  };
+
+  const refreshBtn = document.getElementById('refresh-rooms-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', fetchRoomList);
+  }
+  // 로비 화면 뜰 때 초기 로드 (약간 지연)
+  setTimeout(fetchRoomList, 500);
+
   document.getElementById('quick-start-btn').addEventListener('click', async () => {
     try {
       const res = await fetch('/api/quick-room');

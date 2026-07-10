@@ -55,6 +55,23 @@ app.get('/api/quick-room', (req, res) => {
   }
 });
 
+// 퍼블릭 방 목록 조회 API
+app.get('/api/rooms', (req, res) => {
+  const roomList = [];
+  rooms.forEach((room, roomId) => {
+    if (room.isPublic && room.status === 'lobby') {
+      roomList.push({
+        roomId,
+        playerCount: Object.keys(room.players).length,
+        maxPlayers: room.maxPlayers,
+        gameMode: room.gameMode,
+        mapTheme: room.mapTheme
+      });
+    }
+  });
+  res.json(roomList);
+});
+
 // 방 만들기 (설정 적용)
 app.post('/api/create-room', (req, res) => {
   const { roomId, isPublic, password, maxPlayers, gameMode, mapTheme, prepTime, huntTime } = req.body;
@@ -71,6 +88,7 @@ app.post('/api/create-room', (req, res) => {
   room.mapTheme = mapTheme || 'mansion';
   room.prepTime = prepTime || 60;
   room.huntTime = huntTime || 180;
+  room.mapObjects = room.generateMapObjects(); // 설정된 테마에 맞춰 맵 재생성
   rooms.set(roomId, room);
   
   res.json({ success: true, roomId });
@@ -145,7 +163,15 @@ io.on('connection', (socket) => {
       timer: room.timer,
       readyCount: room.readyPlayers.size,
       totalCount: Object.keys(room.players).length,
-      mode: room.mode
+      mode: room.mode,
+      settings: {
+        isPublic: room.isPublic,
+        maxPlayers: room.maxPlayers,
+        gameMode: room.gameMode,
+        mapTheme: room.mapTheme,
+        prepTime: room.prepTime,
+        huntTime: room.huntTime
+      }
     });
     // 접속 시 생성되어 있는 맵 오브젝트 정보 전송
     socket.emit('mapData', room.mapObjects);
