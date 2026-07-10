@@ -145,10 +145,10 @@ function init3D() {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(0x87ceeb); // 밝은 하늘색
+  renderer.setClearColor(0x5599cc); // 맑지만 너무 밝지 않은 하늘색 (블룸 방지)
 
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x87ceeb, 1500, 4000); // 하늘과 자연스럽게 이어지도록 안개 추가
+  scene.fog = new THREE.Fog(0x5599cc, 1500, 4000); // 하늘과 자연스럽게 이어지도록 안개 추가
 
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 5000);
   
@@ -222,7 +222,7 @@ function init3D() {
   composer.addPass(ssaoPass);
 
   // 2. Bloom (빛 번짐 - 태양과 하이라이트 발광 효과)
-  bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.5, 0.85);
+  bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.5, 0.95);
   composer.addPass(bloomPass);
 
   // 3. Bokeh (피사계 심도)
