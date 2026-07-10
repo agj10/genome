@@ -422,8 +422,8 @@ function update(dt) {
           const halfSize = obj.size / 2;
           const left = obj.x - halfSize;
           const right = obj.x + halfSize;
-          const top = obj.y - halfSize;
-          const bottom = obj.y + halfSize;
+          const top = obj.y - 10;
+          const bottom = obj.y + 10;
           
           if (localPlayer.x + r > left && localPlayer.x - r < right &&
               localPlayer.y + r > top && localPlayer.y - r < bottom) {
@@ -448,9 +448,9 @@ function update(dt) {
     let groundHeight = 0;
     if (mapObjects) {
       for (const obj of mapObjects) {
-        // AABB 체크 (원형이지만 박스로 취급)
+        // AABB 체크 (두께는 얇게)
         if (Math.abs(localPlayer.x - obj.x) < obj.size/2 + r &&
-            Math.abs(localPlayer.y - obj.y) < obj.size/2 + r) {
+            Math.abs(localPlayer.y - obj.y) < 10 + r) {
           // 오브젝트 위에 있는지
           if (localPlayer.z >= obj.height - Math.abs(localPlayer.vz*dt)*2) {
             groundHeight = Math.max(groundHeight, obj.height);

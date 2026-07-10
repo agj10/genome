@@ -39,7 +39,7 @@
       </div>
     </div>
     </div>
-    <div class="version-text">a6.1</div>
+    <div class="version-text">a6.2</div>
   </div>
 
   <!-- 회원가입 화면 -->
@@ -93,7 +93,7 @@
         <button id="logout-btn" class="danger-btn" style="margin-top: 15px;">로그아웃</button>
       </div>
     </div>
-    <div class="version-text">a6.1</div>
+    <div class="version-text">a6.2</div>
   </div>
 
   <!-- 방 만들기 모달 -->
@@ -102,16 +102,27 @@
       <h2>새로운 방 만들기</h2>
       <div class="input-group">
         <label>게임 모드</label>
-        <select id="create-room-mode">
-          <option value="normal">🎮 노멀 모드</option>
+        <select id="create-room-mode" style="display: none;">
+          <option value="normal" selected>🎮 노멀 모드</option>
           <option value="infection">🦠 감염 모드</option>
           <option value="double">🤝 더블 모드</option>
         </select>
+        <div class="custom-select" data-target="create-room-mode">
+          <div class="custom-select-trigger">
+            <span class="custom-select-label">🎮 노멀 모드</span>
+            <span class="arrow">▼</span>
+          </div>
+          <div class="custom-options">
+            <div class="custom-option selected" data-value="normal">🎮 노멀 모드</div>
+            <div class="custom-option" data-value="infection">🦠 감염 모드</div>
+            <div class="custom-option" data-value="double">🤝 더블 모드</div>
+          </div>
+        </div>
       </div>
       <div class="input-group">
         <label>맵 테마</label>
-        <select id="create-room-map">
-          <option value="mansion">🏰 숨바꼭질 저택 (기본)</option>
+        <select id="create-room-map" style="display: none;">
+          <option value="mansion" selected>🏰 숨바꼭질 저택 (기본)</option>
           <option value="sewer">🚰 하수도</option>
           <option value="backrooms">🟨 백룸</option>
           <option value="country">🌾 실내 컨트리</option>
@@ -119,6 +130,21 @@
           <option value="sugarland">🍭 슈가랜드</option>
           <option value="osaka">🏮 오사카</option>
         </select>
+        <div class="custom-select" data-target="create-room-map">
+          <div class="custom-select-trigger">
+            <span class="custom-select-label">🏰 숨바꼭질 저택 (기본)</span>
+            <span class="arrow">▼</span>
+          </div>
+          <div class="custom-options">
+            <div class="custom-option selected" data-value="mansion">🏰 숨바꼭질 저택 (기본)</div>
+            <div class="custom-option" data-value="sewer">🚰 하수도</div>
+            <div class="custom-option" data-value="backrooms">🟨 백룸</div>
+            <div class="custom-option" data-value="country">🌾 실내 컨트리</div>
+            <div class="custom-option" data-value="penguin">🐧 펭귄 호텔</div>
+            <div class="custom-option" data-value="sugarland">🍭 슈가랜드</div>
+            <div class="custom-option" data-value="osaka">🏮 오사카</div>
+          </div>
+        </div>
       </div>
       <div class="input-group">
         <label>최대 인원 (2~20명)</label>
@@ -217,39 +243,54 @@
   <script src="/js/gameState.js"></script>
   
   <script>
-    // Custom Select Dropdown UI logic
+    // 모든 Custom Select 공통 로직
     document.addEventListener('DOMContentLoaded', () => {
-      const trigger = document.getElementById('custom-mode-trigger');
-      const optionsContainer = document.querySelector('.custom-options');
-      const label = document.getElementById('custom-mode-label');
-      const options = document.querySelectorAll('.custom-option');
-      let currentMode = 'normal';
+      const customSelects = document.querySelectorAll('.custom-select');
 
-      if (trigger) {
-        trigger.addEventListener('click', () => {
-          trigger.parentElement.classList.toggle('open');
+      customSelects.forEach(selectContainer => {
+        const trigger = selectContainer.querySelector('.custom-select-trigger');
+        const label = selectContainer.querySelector('.custom-select-label');
+        const options = selectContainer.querySelectorAll('.custom-option');
+        const targetId = selectContainer.getAttribute('data-target');
+        const targetSelect = targetId ? document.getElementById(targetId) : null;
+
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          // 다른 열려있는 드롭다운 모두 닫기
+          customSelects.forEach(s => {
+            if (s !== selectContainer) s.classList.remove('open');
+          });
+          selectContainer.classList.toggle('open');
         });
 
         options.forEach(opt => {
-          opt.addEventListener('click', () => {
+          opt.addEventListener('click', (e) => {
+            e.stopPropagation();
             options.forEach(o => o.classList.remove('selected'));
             opt.classList.add('selected');
-            currentMode = opt.getAttribute('data-value');
-            label.textContent = opt.textContent;
-            trigger.parentElement.classList.remove('open');
+            
+            const value = opt.getAttribute('data-value');
+            if (label) label.textContent = opt.textContent;
+            
+            if (targetSelect) {
+              targetSelect.value = value;
+              targetSelect.dispatchEvent(new Event('change'));
+            }
 
-            // Dispatch event for main.js to catch
-            window.dispatchEvent(new CustomEvent('gameModeChanged', { detail: currentMode }));
+            // 구 하위 호환을 위한 gameModeChanged 이벤트 (HUD 용)
+            if (selectContainer.id === 'hud-game-mode') {
+              window.dispatchEvent(new CustomEvent('gameModeChanged', { detail: value }));
+            }
+
+            selectContainer.classList.remove('open');
           });
         });
-        
-        // Click outside to close
-        document.addEventListener('click', (e) => {
-          if (!trigger.parentElement.contains(e.target)) {
-            trigger.parentElement.classList.remove('open');
-          }
-        });
-      }
+      });
+
+      // 바깥 클릭 시 모든 커스텀 셀렉트 닫기
+      document.addEventListener('click', () => {
+        customSelects.forEach(s => s.classList.remove('open'));
+      });
     });
   </script>
 
