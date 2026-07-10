@@ -41,73 +41,122 @@ class GameRoom {
 
   generateMapObjects() {
     const objects = [];
-    let colors = [];
-    let shapes = [];
-    let objectCount = 30;
-    let minSize = 40, maxSizeOffset = 40;
-    let minHeight = 40, maxHeightOffset = 60;
+    const pushObj = (type, x, y, size, color) => {
+      objects.push({
+        id: `obj_${objects.length}`, type, x, y, z: 0, size, height: size, color
+      });
+    };
 
     switch (this.mapTheme) {
-      case 'mansion':
-        colors = ['#8B4513', '#A0522D', '#D2691E', '#CD853F', '#F4A460'];
-        shapes = ['square'];
-        objectCount = 40;
-        minSize = 50; maxSizeOffset = 80;
+      case 'mansion': {
+        // 저택: 격자형 방 구조와 중앙 거대 거실
+        const colors = ['#8B4513', '#A0522D', '#D2691E', '#CD853F'];
+        pushObj('square', 1000, 1000, 350, '#5C4033'); // 중앙 거대 테이블/카펫
+        for (let x = 200; x <= 1800; x += 400) {
+          for (let y = 200; y <= 1800; y += 400) {
+            if (x > 700 && x < 1300 && y > 700 && y < 1300) continue; // 중앙 비우기
+            if (Math.random() > 0.2) { // 80% 확률로 기둥/벽 생성
+              pushObj('square', x + (Math.random()*100 - 50), y + (Math.random()*100 - 50), 120, colors[Math.floor(Math.random()*colors.length)]);
+            }
+          }
+        }
         break;
-      case 'sewer':
-        colors = ['#2F4F4F', '#556B2F', '#808000', '#696969', '#708090'];
-        shapes = ['circle'];
-        objectCount = 35;
-        minHeight = 60; maxHeightOffset = 40;
+      }
+      case 'backrooms': {
+        // 백룸: 크고 답답한 벽들로 이루어진 빽빽한 미로
+        const colors = ['#F5DEB3', '#FFE4B5', '#FFDAB9'];
+        for (let x = 300; x <= 1700; x += 250) {
+          for (let y = 300; y <= 1700; y += 250) {
+            if (Math.random() > 0.4) {
+              // 크기를 불규칙하게 하여 길을 막음
+              const size = Math.random() > 0.5 ? 200 : 150;
+              pushObj('square', x, y, size, colors[Math.floor(Math.random()*colors.length)]);
+            }
+          }
+        }
         break;
-      case 'backrooms':
-        colors = ['#F5DEB3', '#FFE4B5', '#FFDAB9'];
-        shapes = ['square'];
-        objectCount = 10; // 장애물이 거의 없음
-        minSize = 100; maxSizeOffset = 50;
-        minHeight = 100; maxHeightOffset = 50;
+      }
+      case 'sewer': {
+        // 하수구: 양쪽에 파이프(원형)가 늘어선 중앙 복도 형태
+        const colors = ['#2F4F4F', '#556B2F', '#808000', '#696969'];
+        for (let y = 150; y <= 1850; y += 200) {
+          // 좌측 파이프 라인
+          pushObj('circle', 300 + Math.random()*150, y, 120, colors[Math.floor(Math.random()*colors.length)]);
+          pushObj('circle', 500 + Math.random()*150, y, 100, colors[Math.floor(Math.random()*colors.length)]);
+          // 우측 파이프 라인
+          pushObj('circle', 1500 + Math.random()*150, y, 100, colors[Math.floor(Math.random()*colors.length)]);
+          pushObj('circle', 1700 + Math.random()*150, y, 120, colors[Math.floor(Math.random()*colors.length)]);
+        }
         break;
-      case 'country':
-        colors = ['#228B22', '#32CD32', '#DAA520', '#B8860B'];
-        shapes = ['square', 'circle'];
-        objectCount = 30;
-        minHeight = 30; maxHeightOffset = 40;
+      }
+      case 'country': {
+        // 컨트리: 중앙 광장은 넓게 비우고 맵 외곽에 숲(나무) 밀집
+        const colors = ['#228B22', '#32CD32', '#DAA520', '#B8860B'];
+        for (let i = 0; i < 45; i++) {
+          let x = Math.random() * 1800 + 100;
+          let y = Math.random() * 1800 + 100;
+          // 중앙 반경 600 접근 금지
+          if (Math.abs(x - 1000) < 600 && Math.abs(y - 1000) < 600) {
+            x = (x < 1000) ? x - 600 : x + 600;
+            y = (y < 1000) ? y - 600 : y + 600;
+          }
+          const shape = Math.random() > 0.6 ? 'triangle' : 'circle';
+          pushObj(shape, Math.max(100, Math.min(1900, x)), Math.max(100, Math.min(1900, y)), 70 + Math.random()*30, colors[Math.floor(Math.random()*colors.length)]);
+        }
         break;
-      case 'penguin':
-        colors = ['#ADD8E6', '#87CEEB', '#00BFFF', '#E0FFFF', '#FFFFFF'];
-        shapes = ['circle', 'triangle'];
-        objectCount = 35;
-        minSize = 30; maxSizeOffset = 40;
+      }
+      case 'sugarland': {
+        // 슈가랜드: 매우 작고 많은 물체들이 동심원(달팽이 껍질) 모양으로 퍼짐
+        const colors = ['#FF69B4', '#FFC0CB', '#FFA07A', '#FFD700', '#DDA0DD'];
+        const shapes = ['circle', 'square', 'triangle'];
+        let angle = 0;
+        let radius = 100;
+        for (let i = 0; i < 50; i++) {
+          const cx = 1000 + Math.cos(angle) * radius;
+          const cy = 1000 + Math.sin(angle) * radius;
+          pushObj(shapes[i%3], cx, cy, 30 + Math.random()*20, colors[Math.floor(Math.random()*colors.length)]);
+          angle += 0.5;
+          radius += 18;
+        }
         break;
-      case 'sugarland':
-        colors = ['#FF69B4', '#FFC0CB', '#FFA07A', '#FFD700', '#DDA0DD'];
-        shapes = ['circle', 'square', 'triangle'];
-        objectCount = 50; // 작고 많음
-        minSize = 20; maxSizeOffset = 30;
-        minHeight = 20; maxHeightOffset = 40;
+      }
+      case 'penguin': {
+        // 펭귄 (얼음): 상단과 하단에 큰 덩어리들을 몰아두고, 가운데는 강처럼 비움
+        const colors = ['#ADD8E6', '#87CEEB', '#00BFFF', '#E0FFFF', '#FFFFFF'];
+        const shapes = ['square', 'circle', 'triangle'];
+        for (let i = 0; i < 40; i++) {
+          let x = Math.random() * 1800 + 100;
+          let y = Math.random() * 1800 + 100;
+          // 가운데 가로줄(강)은 비우기
+          if (y > 700 && y < 1300) {
+             y = Math.random() > 0.5 ? y - 600 : y + 600; 
+          }
+          pushObj(shapes[Math.floor(Math.random()*shapes.length)], x, y, 60 + Math.random()*40, colors[Math.floor(Math.random()*colors.length)]);
+        }
         break;
-      case 'osaka':
-        colors = ['#FF1493', '#00FFFF', '#FF00FF', '#FFFF00', '#00FF00'];
-        shapes = ['square'];
-        objectCount = 35;
+      }
+      case 'osaka': {
+        // 오사카 (도심): 빽빽한 사거리 바둑판 구조 (3x3 거대 블록)
+        const colors = ['#FF1493', '#00FFFF', '#FF00FF', '#FFFF00'];
+        for (let x = 333; x <= 1666; x += 666) {
+          for (let y = 333; y <= 1666; y += 666) {
+            pushObj('square', x, y, 250, colors[Math.floor(Math.random()*colors.length)]); // 거대 빌딩
+            // 빌딩 주변의 작은 간판들
+            pushObj('square', x + 150, y, 50, colors[Math.floor(Math.random()*colors.length)]);
+            pushObj('square', x - 150, y, 50, colors[Math.floor(Math.random()*colors.length)]);
+          }
+        }
         break;
-      default:
-        colors = ['#e53e3e', '#ecc94b', '#48bb78', '#4299e1', '#ed64a6', '#9f7aea', '#a0aec0', '#4a5568'];
-        shapes = ['circle', 'square', 'triangle'];
+      }
+      default: {
+        // 기본 맵: 무작위 산개
+        const colors = ['#e53e3e', '#ecc94b', '#48bb78', '#4299e1', '#ed64a6', '#9f7aea', '#a0aec0', '#4a5568'];
+        const shapes = ['circle', 'square', 'triangle'];
+        for (let i = 0; i < 30; i++) {
+          pushObj(shapes[Math.floor(Math.random()*shapes.length)], Math.random()*1800+100, Math.random()*1800+100, 40 + Math.random()*40, colors[Math.floor(Math.random()*colors.length)]);
+        }
         break;
-    }
-    
-    for (let i = 0; i < objectCount; i++) {
-      objects.push({
-        id: `obj_${i}`,
-        type: shapes[Math.floor(Math.random() * shapes.length)],
-        x: Math.random() * 1800 + 100, // 2000x2000 맵
-        y: Math.random() * 1800 + 100,
-        z: 0,
-        size: Math.random() * maxSizeOffset + minSize, 
-        height: Math.random() * maxHeightOffset + minHeight, 
-        color: colors[Math.floor(Math.random() * colors.length)]
-      });
+      }
     }
     return objects;
   }

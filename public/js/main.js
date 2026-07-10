@@ -156,12 +156,11 @@ function init3D() {
   
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 5000);
   
-  // 조명 세팅 (유니티 스타일: 매우 화사한 환경광 + 강력하고 깊은 그림자 생성 직사광)
+  // 조명 세팅 (기본값)
   ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
   scene.add(ambientLight);
 
-  dirLight = new THREE.DirectionalLight(0xffffff, 2.5); // 강력한 태양광
-  // 각도를 비스듬히 하여 그림자가 길게 뻗게 만듦 (셰이더 효과 강조)
+  dirLight = new THREE.DirectionalLight(0xffffff, 2.5); 
   dirLight.position.set(1500, 1500, 500); 
   dirLight.castShadow = true;
   dirLight.shadow.mapSize.width = 2048;
@@ -181,6 +180,69 @@ function init3D() {
   const sunMesh = new THREE.Mesh(sunGeo, sunMat);
   sunMesh.position.copy(dirLight.position);
   scene.add(sunMesh);
+  window.sunMesh = sunMesh; // 테마 변경 시 접근용
+
+  // 테마별 환경 설정 함수
+  window.applyThemeEnvironment = function(theme) {
+    let skyColor, lightColor, lightIntensity, ambientIntensity, sunPosition, showSun;
+    
+    if (theme === 'mansion') {
+      skyColor = 0x050510; // 밤하늘
+      lightColor = 0x88aaff; // 달빛
+      lightIntensity = 1.0;
+      ambientIntensity = 0.5;
+      sunPosition = [1000, 1000, 1000];
+      showSun = true;
+    } else if (theme === 'backrooms') {
+      skyColor = 0xcaba86; // 노란 실내
+      lightColor = 0xfffaaa; // 형광등
+      lightIntensity = 1.5;
+      ambientIntensity = 1.2;
+      sunPosition = [0, 2000, 0]; // 수직 조명 (짧은 그림자)
+      showSun = false;
+    } else if (theme === 'sewer') {
+      skyColor = 0x0a1510; // 어둡고 칙칙한 하수구
+      lightColor = 0x55ffaa; // 초록빛
+      lightIntensity = 0.8;
+      ambientIntensity = 0.3;
+      sunPosition = [500, 500, 500]; // 좁은 각도
+      showSun = false;
+    } else if (theme === 'country') {
+      skyColor = 0x55aaff; // 맑고 밝은 숲
+      lightColor = 0xffffff;
+      lightIntensity = 2.5;
+      ambientIntensity = 1.2;
+      sunPosition = [1500, 1500, 500]; // 정오
+      showSun = true;
+    } else if (theme === 'penguin') {
+      skyColor = 0xeeeeff; // 하얀 얼음 나라
+      lightColor = 0xffffff;
+      lightIntensity = 2.0;
+      ambientIntensity = 1.5;
+      sunPosition = [1000, 1000, -1000];
+      showSun = true;
+    } else {
+      skyColor = 0x87ceeb; // 기본
+      lightColor = 0xffffff;
+      lightIntensity = 2.5;
+      ambientIntensity = 1.2;
+      sunPosition = [1500, 1500, 500];
+      showSun = true;
+    }
+
+    renderer.setClearColor(skyColor);
+    ambientLight.color.setHex(lightColor);
+    ambientLight.intensity = ambientIntensity;
+    dirLight.color.setHex(lightColor);
+    dirLight.intensity = lightIntensity;
+    dirLight.position.set(...sunPosition);
+    
+    if (window.sunMesh) {
+      window.sunMesh.material.color.setHex(lightColor);
+      window.sunMesh.position.copy(dirLight.position);
+      window.sunMesh.visible = showSun;
+    }
+  };
 
   // 바닥 텍스처 생성 (그리드 무늬 고정)
   gridCanvas = document.createElement('canvas');
@@ -554,7 +616,15 @@ function render3D() {
     dirLight.target.updateMatrixWorld();
   }
 
-  // 테마 바닥 렌더링 동기화 제거 (고정 그리드 사용)
+  // 테마 환경 동기화 (시간대, 스카이박스, 조명 등)
+  if (window.gameStateManager && window.gameStateManager.settings) {
+    if (window.currentTheme !== window.gameStateManager.settings.mapTheme) {
+      window.currentTheme = window.gameStateManager.settings.mapTheme;
+      if (window.applyThemeEnvironment) {
+        window.applyThemeEnvironment(window.currentTheme);
+      }
+    }
+  }
 
   // 엔티티 정리 및 메쉬 동기화
   const activeIds = new Set();
