@@ -145,42 +145,37 @@ function init3D() {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(0xe6f0fa); // 맑고 밝은 대낮 하늘
+  renderer.setClearColor(0x519dd4); // 유니티 스카이박스 스타일의 뚜렷한 푸른 하늘
 
   scene = new THREE.Scene();
   // 안개(fog) 제거 (유저 요청)
 
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 5000);
   
-  // 조명 세팅 (백색광 - 쨍한 낮)
-  ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+  // 조명 세팅 (유니티 스타일: 백색 환경광 + 백색 직사광)
+  ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // 너무 밝지 않게 조절
   scene.add(ambientLight);
 
-  const pointLight = new THREE.PointLight(0xffeedd, 2.0, 3000);
-  pointLight.position.set(MAP.width / 2, 800, MAP.height / 2);
-  pointLight.castShadow = true;
-  scene.add(pointLight);
-
-  // 태양 형상 (광원 위치에 배치)
-  const sunGeo = new THREE.SphereGeometry(80, 32, 32);
-  const sunMat = new THREE.MeshBasicMaterial({ color: 0xffeedd });
-  const sunMesh = new THREE.Mesh(sunGeo, sunMat);
-  sunMesh.position.copy(pointLight.position);
-  scene.add(sunMesh);
-
-  dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-  dirLight.position.set(500, 1500, 500);
+  dirLight = new THREE.DirectionalLight(0xffffff, 1.5); // 강력한 태양광
+  dirLight.position.set(2000, 3000, 2000);
   dirLight.castShadow = true;
   dirLight.shadow.mapSize.width = 2048;
   dirLight.shadow.mapSize.height = 2048;
   dirLight.shadow.camera.near = 0.5;
-  dirLight.shadow.camera.far = 3000;
-  const d = 1000;
+  dirLight.shadow.camera.far = 8000;
+  const d = 1500;
   dirLight.shadow.camera.left = -d;
   dirLight.shadow.camera.right = d;
   dirLight.shadow.camera.top = d;
   dirLight.shadow.camera.bottom = -d;
   scene.add(dirLight);
+
+  // 태양 형상 (직사광 위치에 배치)
+  const sunGeo = new THREE.SphereGeometry(150, 32, 32);
+  const sunMat = new THREE.MeshBasicMaterial({ color: 0xffeedd });
+  const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+  sunMesh.position.copy(dirLight.position);
+  scene.add(sunMesh);
 
   // 바닥 텍스처 생성 (그리드 무늬)
   const gridCanvas = document.createElement('canvas');
