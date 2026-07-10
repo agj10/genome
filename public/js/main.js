@@ -15,6 +15,7 @@ let renderer, scene, camera, composer;
 let bokehPass, bloomPass, ssaoPass, rgbShiftPass;
 let ambientLight, dirLight;
 let groundMat; // 바닥 머티리얼 (색상 변경용)
+let gridCanvas, gridTex, gCtx; // 바닥 텍스처 변경용
 
 let isGameRunning = false;
 let lastTime = 0;
@@ -145,10 +146,40 @@ function init3D() {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(0x519dd4); // 유니티 스카이박스 스타일의 뚜렷한 푸른 하늘
+  renderer.setClearColor(0xe6f0fa); // 만약을 위한 배경색
 
   scene = new THREE.Scene();
-  // 안개(fog) 제거 (유저 요청)
+  
+  // 하늘 (Gradient Skybox)
+  const vertexShader = `
+    varying vec3 vWorldPosition;
+    void main() {
+      vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+      vWorldPosition = worldPosition.xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+  const fragmentShader = `
+    uniform vec3 topColor;
+    uniform vec3 bottomColor;
+    varying vec3 vWorldPosition;
+    void main() {
+      float h = normalize(vWorldPosition).y;
+      gl_FragColor = vec4(mix(bottomColor, topColor, max(h, 0.0)), 1.0);
+    }
+  `;
+  const uniforms = {
+    topColor: { value: new THREE.Color(0x3178c6) }, // 진한 파랑
+    bottomColor: { value: new THREE.Color(0xdceeff) } // 옅은 하늘색
+  };
+  const skyGeo = new THREE.SphereGeometry(4000, 32, 15);
+  const skyMat = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,
+    fragmentShader: fragmentShader,
+    uniforms: uniforms,
+    side: THREE.BackSide
+  });
+  scene.add(new THREE.Mesh(skyGeo, skyMat));
 
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 5000);
   
@@ -178,23 +209,39 @@ function init3D() {
   scene.add(sunMesh);
 
   // 바닥 텍스처 생성 (그리드 무늬)
-  const gridCanvas = document.createElement('canvas');
+  gridCanvas = document.createElement('canvas');
   gridCanvas.width = 512; gridCanvas.height = 512;
-  const gCtx = gridCanvas.getContext('2d');
-  gCtx.fillStyle = '#2d3748';
-  gCtx.fillRect(0, 0, 512, 512);
-  gCtx.strokeStyle = '#4a5568';
-  gCtx.lineWidth = 4;
-  gCtx.beginPath();
-  for (let i = 0; i <= 512; i += 64) {
-    gCtx.moveTo(i, 0); gCtx.lineTo(i, 512);
-    gCtx.moveTo(0, i); gCtx.lineTo(512, i);
-  }
-  gCtx.stroke();
-  const gridTex = new THREE.CanvasTexture(gridCanvas);
+  gCtx = gridCanvas.getContext('2d');
+  gridTex = new THREE.CanvasTexture(gridCanvas);
   gridTex.wrapS = THREE.RepeatWrapping;
   gridTex.wrapT = THREE.RepeatWrapping;
   gridTex.repeat.set(MAP.width / 256, MAP.height / 256);
+  
+  window.updateGroundTexture = function(theme) {
+    let bgColor = '#2d3748';
+    let lineColor = '#4a5568';
+    
+    if (theme === 'mansion') { bgColor = '#5C4033'; lineColor = '#3e2723'; }
+    else if (theme === 'sewer') { bgColor = '#2F4F4F'; lineColor = '#1a2f2f'; }
+    else if (theme === 'backrooms') { bgColor = '#e6cc80'; lineColor = '#ccaa44'; }
+    else if (theme === 'country') { bgColor = '#4F8E3A'; lineColor = '#355E2B'; }
+    else if (theme === 'penguin') { bgColor = '#E0FFFF'; lineColor = '#B0E0E6'; }
+    else if (theme === 'sugarland') { bgColor = '#FFC0CB'; lineColor = '#FF69B4'; }
+    else if (theme === 'osaka') { bgColor = '#1A1A1A'; lineColor = '#333333'; }
+
+    gCtx.fillStyle = bgColor;
+    gCtx.fillRect(0, 0, 512, 512);
+    gCtx.strokeStyle = lineColor;
+    gCtx.lineWidth = 4;
+    gCtx.beginPath();
+    for (let i = 0; i <= 512; i += 64) {
+      gCtx.moveTo(i, 0); gCtx.lineTo(i, 512);
+      gCtx.moveTo(0, i); gCtx.lineTo(512, i);
+    }
+    gCtx.stroke();
+    gridTex.needsUpdate = true;
+  };
+  window.updateGroundTexture('mansion');
 
   // 바닥 생성
   const groundGeo = new THREE.PlaneGeometry(MAP.width * 2, MAP.height * 2);
@@ -428,12 +475,12 @@ function update(dt) {
           const top = obj.y - 0.1;
           const bottom = obj.y + 0.1;
           
-          // Y축 반경 r을 무시하여 충돌 두께를 0으로 만듦
+          // Y축 두께를 5로 주어 얇지만 투과되지 않도록 방지
           if (localPlayer.x + r > left && localPlayer.x - r < right &&
-              Math.abs(localPlayer.y - obj.y) < 0.1) {
+              Math.abs(localPlayer.y - obj.y) < 5) {
             
             if (oldX + r <= left || oldX - r >= right) localPlayer.x = oldX;
-            if (Math.abs(oldY - obj.y) >= 0.1) localPlayer.y = oldY;
+            if (Math.abs(oldY - obj.y) >= 5) localPlayer.y = oldY;
           }
         }
       }
@@ -452,9 +499,9 @@ function update(dt) {
     let groundHeight = 0;
     if (mapObjects) {
       for (const obj of mapObjects) {
-        // Y축 두께 완전 0으로 판정
+        // Y축 두께 5로 판정
         if (Math.abs(localPlayer.x - obj.x) < obj.size/2 + r &&
-            Math.abs(localPlayer.y - obj.y) < 0.1) {
+            Math.abs(localPlayer.y - obj.y) < 5) {
           // 오브젝트 위에 있는지
           if (localPlayer.z >= obj.height - Math.abs(localPlayer.vz*dt)*2) {
             groundHeight = Math.max(groundHeight, obj.height);
@@ -547,6 +594,14 @@ function render3D() {
     dirLight.target.updateMatrixWorld();
   }
 
+  // 테마 바닥 렌더링 동기화
+  if (window.gameStateManager && window.gameStateManager.settings) {
+    if (window.currentTheme !== window.gameStateManager.settings.mapTheme) {
+      window.currentTheme = window.gameStateManager.settings.mapTheme;
+      window.updateGroundTexture(window.currentTheme);
+    }
+  }
+
   // 엔티티 정리 및 메쉬 동기화
   const activeIds = new Set();
   const rBase = 26;
@@ -587,7 +642,7 @@ function render3D() {
         meshCache[obj.id] = mesh;
       }
       const mesh = meshCache[obj.id];
-      mesh.position.set(obj.x, obj.height/2, obj.y);
+      mesh.position.set(obj.x, obj.size/2, obj.y); // PlaneGeometry이므로 높이는 size/2
     });
   }
 
@@ -635,7 +690,7 @@ function render3D() {
       }
       const geo = getShapeGeometry(pShape, rBase * 2);
       const mat = new THREE.MeshStandardMaterial({ 
-        color: p.role === 'seeker' ? 0xfc8181 : 0xe8ecf1, 
+        color: 0xffffff, 
         transparent: true, 
         alphaTest: 0.1,
         side: THREE.DoubleSide
@@ -677,8 +732,8 @@ function render3D() {
     // 사망 처리 시각화 (색상 어둡게 또는 투명도)
     if (!p.isAlive) {
       mesh.material.color.setHex(0x555555);
-    } else if (!mesh.material.map) {
-      mesh.material.color.setHex(p.role === 'seeker' ? 0xfc8181 : 0xe8ecf1);
+    } else {
+      mesh.material.color.setHex(0xffffff);
     }
   }
 
