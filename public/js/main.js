@@ -61,8 +61,6 @@ window.addEventListener('mouseup', (e) => {
 window.addEventListener('mousemove', (e) => {
   if (isRightMouseDown) {
     cameraPitchOffset += e.movementY * 1.5;
-    if (cameraPitchOffset < -200) cameraPitchOffset = -200;
-    if (cameraPitchOffset > 400) cameraPitchOffset = 400;
   }
 });
 window.addEventListener('contextmenu', e => e.preventDefault());
@@ -486,7 +484,21 @@ function update(dt) {
   if (localPlayer) {
     // 비스듬히 앞을 내려다보는 뷰 (거리: targetZoom)
     const camOffsetX = 0;
-    const camOffsetY = (targetZoom * 0.5) + (cameraPitchOffset * 0.5);
+    let camOffsetY = (targetZoom * 0.5) + (cameraPitchOffset * 0.5);
+    
+    // 바닥 관통 방지: 카메라의 절대 높이(Y)가 10 밑으로 내려가지 않도록 제한
+    if (localPlayer.z + camOffsetY < 10) {
+      camOffsetY = 10 - localPlayer.z;
+      cameraPitchOffset = (camOffsetY - targetZoom * 0.5) * 2;
+    }
+    
+    // 최대 높이 제한 (카메라가 너무 위로 솟구치지 않도록)
+    const maxOffsetY = targetZoom * 1.2;
+    if (camOffsetY > maxOffsetY) {
+      camOffsetY = maxOffsetY;
+      cameraPitchOffset = (camOffsetY - targetZoom * 0.5) * 2;
+    }
+
     const camOffsetZ = targetZoom * 0.9;
 
     camera.position.x += ((localPlayer.x + camOffsetX) - camera.position.x) * 5 * dt;
