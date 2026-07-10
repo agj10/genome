@@ -570,8 +570,6 @@ function render3D() {
       }
       const mesh = meshCache[obj.id];
       mesh.position.set(obj.x, obj.height/2, obj.y);
-      // 완벽한 빌보드: 카메라 회전과 동일하게 맞춤
-      mesh.quaternion.copy(camera.quaternion);
     });
   }
 
@@ -604,9 +602,6 @@ function render3D() {
         mesh.material.needsUpdate = true;
       });
     }
-
-    // 완벽한 빌보드 (항상 카메라 방향)
-    mesh.quaternion.copy(camera.quaternion);
   }
 
   // 3. Players
@@ -667,9 +662,6 @@ function render3D() {
     } else if (!mesh.material.map) {
       mesh.material.color.setHex(p.role === 'seeker' ? 0xfc8181 : 0xe8ecf1);
     }
-
-    // 완벽한 빌보드 (항상 카메라 방향)
-    mesh.quaternion.copy(camera.quaternion);
   }
 
   // 화면에 없는 엔티티 삭제
