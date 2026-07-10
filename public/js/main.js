@@ -147,23 +147,31 @@ function init3D() {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(0x1a2e40); // 기본 배경색
+  renderer.setClearColor(0x87ceeb); // 밝은 하늘색
 
   scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x87ceeb, 1500, 4000); // 하늘과 자연스럽게 이어지도록 안개 추가
 
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 5000);
   
-  // 조명 세팅
-  ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  // 조명 세팅 (더 밝게)
+  ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
   scene.add(ambientLight);
 
-  const pointLight = new THREE.PointLight(0xffddaa, 1.5, 2000);
-  pointLight.position.set(MAP.width / 2, 400, MAP.height / 2);
+  const pointLight = new THREE.PointLight(0xffeedd, 2.0, 3000);
+  pointLight.position.set(MAP.width / 2, 800, MAP.height / 2);
   pointLight.castShadow = true;
   scene.add(pointLight);
 
-  dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(500, 1000, 500);
+  // 태양 형상 (광원 위치에 배치)
+  const sunGeo = new THREE.SphereGeometry(80, 32, 32);
+  const sunMat = new THREE.MeshBasicMaterial({ color: 0xffeedd });
+  const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+  sunMesh.position.copy(pointLight.position);
+  scene.add(sunMesh);
+
+  dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  dirLight.position.set(500, 1500, 500);
   dirLight.castShadow = true;
   dirLight.shadow.mapSize.width = 2048;
   dirLight.shadow.mapSize.height = 2048;
@@ -215,8 +223,8 @@ function init3D() {
   ssaoPass.maxDistance = 0.1;
   composer.addPass(ssaoPass);
 
-  // 2. Bloom (빛 번짐)
-  bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.4, 0.85);
+  // 2. Bloom (빛 번짐 - 태양과 하이라이트 발광 효과)
+  bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.5, 0.85);
   composer.addPass(bloomPass);
 
   // 3. Bokeh (피사계 심도)
