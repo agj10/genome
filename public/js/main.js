@@ -145,15 +145,15 @@ function init3D() {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(0x5599cc); // 맑지만 너무 밝지 않은 하늘색 (블룸 방지)
+  renderer.setClearColor(0xdcbba0); // 따뜻한 햇빛의 옅은 오렌지/상아색 안개 느낌
 
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x5599cc, 1500, 4000); // 하늘과 자연스럽게 이어지도록 안개 추가
+  scene.fog = new THREE.Fog(0xdcbba0, 1500, 4000); // 지평선 쪽 따뜻한 광원(햇빛) 효과
 
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 5000);
   
-  // 조명 세팅 (더 밝게)
-  ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+  // 조명 세팅 (더 밝고 따뜻하게)
+  ambientLight = new THREE.AmbientLight(0xffeedd, 1.2);
   scene.add(ambientLight);
 
   const pointLight = new THREE.PointLight(0xffeedd, 2.0, 3000);
@@ -168,7 +168,7 @@ function init3D() {
   sunMesh.position.copy(pointLight.position);
   scene.add(sunMesh);
 
-  dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  dirLight = new THREE.DirectionalLight(0xffeebb, 1.0);
   dirLight.position.set(500, 1500, 500);
   dirLight.castShadow = true;
   dirLight.shadow.mapSize.width = 2048;
