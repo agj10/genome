@@ -147,8 +147,8 @@ io.on('connection', (socket) => {
     room.players[socket.id] = {
       userId: socket.user.id,
       nickname: socket.user.nickname,
-      x: 800 + Math.random() * 400,
-      y: 800 + Math.random() * 400,
+      x: 900 + Math.random() * 200, // 중앙 하단 안전 지대 스폰
+      y: 100 + Math.random() * 100,
       z: 0,
       color: '#ffffff',
       isAlive: true,
