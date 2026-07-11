@@ -269,8 +269,8 @@ function init3D() {
   // 3. Bokeh (피사계 심도)
   bokehPass = new BokehPass(scene, camera, {
     focus: 1.0,
-    aperture: 0.00005,
-    maxblur: 0.004,
+    aperture: 0.00001, // 조리개를 조여서(낮춰서) 초점이 맞는 구간(심도)을 넓힘
+    maxblur: 0.012,    // 대신 완전히 벗어난 먼 거리의 블러 강도는 높임 (대비 증가)
     width: window.innerWidth,
     height: window.innerHeight
   });
