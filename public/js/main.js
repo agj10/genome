@@ -37,13 +37,17 @@ const meshCache = {};
 window.addEventListener('keydown', (e) => { 
   if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
   input.keys[e.key] = true; 
-  handleShortcuts(e.key);
+  input.keys[e.code] = true; 
+  handleShortcuts(e);
   if (e.code === 'Space') {
     e.preventDefault();
     handleJump();
   }
 });
-window.addEventListener('keyup', (e) => { input.keys[e.key] = false; });
+window.addEventListener('keyup', (e) => { 
+  input.keys[e.key] = false; 
+  input.keys[e.code] = false; 
+});
 window.addEventListener('blur', () => { input.keys = {}; });
 window.addEventListener('resize', resizeCanvas);
 
@@ -66,37 +70,8 @@ window.addEventListener('mousemove', (e) => {
 });
 window.addEventListener('contextmenu', e => e.preventDefault());
 
-function handleShortcuts(key) {
-  if (!socket || !localPlayer) return;
-  const me = networkPlayers[socket.id];
-  if (!me || me.role !== 'hider' || !me.isAlive) return;
-
-  const k = key.toLowerCase();
-  
-  if (gameStateManager.status === 'prep') {
-    if (k === 'r') {
-      const shapes = ['circle', 'square', 'triangle'];
-      let idx = shapes.indexOf(me.shape);
-      if (idx === -1) idx = 0;
-      const nextShape = shapes[(idx + 1) % shapes.length];
-      socket.emit('changeShape', nextShape);
-    }
-  }
-
-  if (gameStateManager.status === 'prep' || gameStateManager.status === 'hunt') {
-    if (k === 'q') {
-      if (paintTool) {
-        socket.emit('addDecoy', {
-          x: localPlayer.x,
-          y: localPlayer.y,
-          shape: me.shape || 'circle',
-          textureData: paintTool.getTextureData()
-        });
-      }
-    } else if (k === 'x') {
-      socket.emit('removeDecoys');
-    }
-  }
+function handleShortcuts(e) {
+  if (e.code === 'KeyF' && paintTool) paintTool.togglePanel();
 }
 
 function handleJump() {
@@ -427,6 +402,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('show-create-room-btn').addEventListener('click', () => {
       document.getElementById('create-room-modal').querySelector('h2').textContent = '새로운 방 만들기';
       document.getElementById('create-room-confirm-btn').textContent = '방 만들기';
+      try {
+        const saved = localStorage.getItem('genomeRoomSettings');
+        if (saved) {
+          const s = JSON.parse(saved);
+          if (s.gameMode) document.getElementById('create-room-mode').value = s.gameMode;
+          if (s.mapTheme) document.getElementById('create-room-map').value = s.mapTheme;
+          if (s.maxPlayers) document.getElementById('create-room-max').value = s.maxPlayers;
+          if (s.prepTime) document.getElementById('create-room-prep-time').value = s.prepTime;
+          if (s.huntTime) document.getElementById('create-room-hunt-time').value = s.huntTime;
+          if (s.password !== undefined) document.getElementById('create-room-password').value = s.password;
+        }
+      } catch (e) {}
       createModal.style.display = 'flex';
     });
   }
@@ -445,6 +432,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const mapTheme = document.getElementById('create-room-map').value;
       const prepTime = parseInt(document.getElementById('create-room-prep-time').value);
       const huntTime = parseInt(document.getElementById('create-room-hunt-time').value);
+
+      try {
+        localStorage.setItem('genomeRoomSettings', JSON.stringify({
+          isPublic, password, maxPlayers, gameMode, mapTheme, prepTime, huntTime
+        }));
+      } catch (e) {}
 
       if (currentRoomId) {
         if (socket) {
@@ -725,37 +718,6 @@ function render3D() {
     });
   }
 
-  // 2. Decoys
-  for (const dId in networkDecoys) {
-    activeIds.add(dId);
-    const d = networkDecoys[dId];
-    if (!meshCache[dId]) {
-      const geo = getShapeGeometry(d.shape || 'circle', rBase * 2);
-      const mat = new THREE.MeshStandardMaterial({ 
-        color: 0xffffff, 
-        transparent: true, 
-        alphaTest: 0.1, 
-        side: THREE.DoubleSide 
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.castShadow = true;
-      scene.add(mesh);
-      meshCache[dId] = mesh;
-    }
-    const mesh = meshCache[dId];
-    mesh.position.set(d.x, rBase, d.y); // z대신 y가 높이
-
-    // 텍스처 업데이트
-    if (d.textureData && mesh.userData.src !== d.textureData) {
-      mesh.userData.src = d.textureData;
-      new THREE.TextureLoader().load(d.textureData, (tex) => {
-        mesh.material.map = tex;
-        mesh.material.color.setHex(0xffffff);
-        mesh.material.needsUpdate = true;
-      });
-    }
-  }
-
   // 3. Players
   for (const pId in networkPlayers) {
     activeIds.add(pId);
@@ -950,15 +912,29 @@ function onPointerDown(e) {
 
   if (gameStateManager.status === 'hunt' && me.role === 'seeker') {
     attemptTag3D(e.clientX, e.clientY);
+  } else if (me.role === 'hider' && paintTool) {
+    const uv = getPointerIntersection(e.clientX, e.clientY);
+    if (uv) {
+      paintTool.isDrawing3D = true;
+      paintTool.onPointerDown({ clientX: uv.x * paintTool.canvas.width, clientY: (1 - uv.y) * paintTool.canvas.height, isSimulated: true });
+    }
   }
 }
 
 function onPointerMove(e) {
-  // 사용되지 않음 (paintTool.js 내부에서 처리)
+  if (paintTool && paintTool.isDrawing3D) {
+    const uv = getPointerIntersection(e.clientX, e.clientY);
+    if (uv) {
+      paintTool.onPointerMove({ clientX: uv.x * paintTool.canvas.width, clientY: (1 - uv.y) * paintTool.canvas.height, isSimulated: true });
+    }
+  }
 }
 
 function onPointerUp() {
-  // 사용되지 않음
+  if (paintTool && paintTool.isDrawing3D) {
+    paintTool.isDrawing3D = false;
+    paintTool.onPointerUp();
+  }
 }
 
 function attemptTag3D(sx, sy) {
@@ -967,30 +943,19 @@ function attemptTag3D(sx, sy) {
   raycaster.setFromCamera(mouse, camera);
 
   const targets = [];
-  // 플레이어 및 디코이 메쉬 모으기
+  // 플레이어 메쉬 모으기
   for (const id in networkPlayers) {
     if (id !== socket.id && networkPlayers[id].isAlive && networkPlayers[id].role === 'hider') {
       if (meshCache[id]) targets.push(meshCache[id]);
-    }
-  }
-  for (const dId in networkDecoys) {
-    if (meshCache[dId]) {
-      meshCache[dId].userData.isDecoy = true;
-      meshCache[dId].userData.dId = dId;
-      targets.push(meshCache[dId]);
     }
   }
 
   const intersects = raycaster.intersectObjects(targets);
   if (intersects.length > 0) {
     const hit = intersects[0].object;
-    if (hit.userData.isDecoy) {
-      socket.emit('tagPlayer', { targetId: hit.userData.dId, isDecoy: true });
-    } else {
-      // meshCache key 찾기
-      const targetId = Object.keys(meshCache).find(k => meshCache[k] === hit);
-      if (targetId) socket.emit('tagPlayer', { targetId, isDecoy: false });
-    }
+    // meshCache key 찾기
+    const targetId = Object.keys(meshCache).find(k => meshCache[k] === hit);
+    if (targetId) socket.emit('tagPlayer', { targetId, isDecoy: false });
   } else {
     socket.emit('tagPlayer', null);
   }

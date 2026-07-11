@@ -101,7 +101,7 @@ class GameRoom {
             y = (y < 1000) ? y - 600 : y + 600;
           }
           const shape = Math.random() > 0.6 ? 'triangle' : 'circle';
-          pushObj(shape, Math.max(100, Math.min(1900, x)), Math.max(100, Math.min(1900, y)), 70 + Math.random()*30, colors[Math.floor(Math.random()*colors.length)]);
+          pushObj(shape, Math.max(100, Math.min(1900, x)), Math.max(100, Math.min(1850, y)), 70 + Math.random()*30, colors[Math.floor(Math.random()*colors.length)]);
         }
         break;
       }
@@ -314,52 +314,11 @@ class GameRoom {
     this.players[ids[seekerIdx]].role = 'seeker';
   }
 
-  // ── 디코이 로직 ──
-  addDecoy(ownerId, x, y, shape, textureData) {
-    if (this.status !== 'prep' && this.status !== 'hunt') return;
-    
-    let currentDecoys = 0;
-    for (const dId in this.decoys) {
-      if (this.decoys[dId].ownerId === ownerId) currentDecoys++;
-    }
-
-    if (currentDecoys >= 2) return; // 최대 2개
-
-    this.decoyCounter++;
-    const decoyId = `decoy_${this.decoyCounter}`;
-    this.decoys[decoyId] = { ownerId, x, y, shape, textureData };
-    
-    this.io.to(this.roomId).emit('updateDecoys', this.decoys);
-  }
-
-  removeDecoys(ownerId) {
-    let changed = false;
-    for (const dId in this.decoys) {
-      if (this.decoys[dId].ownerId === ownerId) {
-        delete this.decoys[dId];
-        changed = true;
-      }
-    }
-    if (changed) {
-      this.io.to(this.roomId).emit('updateDecoys', this.decoys);
-    }
-  }
-
   // ── 태그 로직 ──
-  handleTag(seekerId, targetId, isDecoy = false) {
+  handleTag(seekerId, targetId) {
     if (this.status !== 'hunt') return;
     const seeker = this.players[seekerId];
     if (!seeker || seeker.role !== 'seeker') return;
-
-    if (isDecoy) {
-      // 디코이 태그 시 디코이 파괴 + 페널티
-      if (this.decoys[targetId]) {
-        delete this.decoys[targetId];
-        this.io.to(this.roomId).emit('updateDecoys', this.decoys);
-        this.handleMiss(seekerId); // 디코이를 치면 헛스윙 처리
-      }
-      return;
-    }
 
     const target = this.players[targetId];
     if (!target || target.role !== 'hider' || !target.isAlive) return;

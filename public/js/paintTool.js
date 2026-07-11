@@ -87,7 +87,13 @@ class PaintTool {
   }
 
   getPointerPos(e) {
+    if (e.isSimulated) {
+      return { x: e.clientX, y: e.clientY };
+    }
     const rect = this.canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      return { x: e.clientX, y: e.clientY };
+    }
     const scaleX = this.canvas.width / rect.width;
     const scaleY = this.canvas.height / rect.height;
     return {
@@ -224,6 +230,9 @@ class PaintTool {
       this.isDrawing = false;
       this.ctx.globalCompositeOperation = 'source-over';
       this.saveHistory();
+      if (window.socket && window.currentRoomId) {
+        window.socket.emit('updateTexture', this.canvas.toDataURL());
+      }
     }
   }
 

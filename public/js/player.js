@@ -13,10 +13,10 @@ class LocalPlayer {
     let dx = 0;
     let dy = 0;
 
-    if (input.keys['w'] || input.keys['W'] || input.keys['ArrowUp'])    dy -= 1;
-    if (input.keys['s'] || input.keys['S'] || input.keys['ArrowDown'])  dy += 1;
-    if (input.keys['a'] || input.keys['A'] || input.keys['ArrowLeft'])  dx -= 1;
-    if (input.keys['d'] || input.keys['D'] || input.keys['ArrowRight']) dx += 1;
+    if (input.keys['w'] || input.keys['W'] || input.keys['KeyW'] || input.keys['ArrowUp'])    dy -= 1;
+    if (input.keys['s'] || input.keys['S'] || input.keys['KeyS'] || input.keys['ArrowDown'])  dy += 1;
+    if (input.keys['a'] || input.keys['A'] || input.keys['KeyA'] || input.keys['ArrowLeft'])  dx -= 1;
+    if (input.keys['d'] || input.keys['D'] || input.keys['KeyD'] || input.keys['ArrowRight']) dx += 1;
 
     // 대각선 정규화
     if (dx !== 0 && dy !== 0) {
@@ -25,9 +25,14 @@ class LocalPlayer {
       dy /= len;
     }
 
+    let currentSpeed = this.speed;
+    if (input.keys['Shift'] || input.keys['shift'] || input.keys['ShiftLeft'] || input.keys['ShiftRight']) {
+      currentSpeed *= 1.6;
+    }
+
     if (dx !== 0 || dy !== 0) {
-      this.x += dx * this.speed * dt;
-      this.y += dy * this.speed * dt;
+      this.x += dx * currentSpeed * dt;
+      this.y += dy * currentSpeed * dt;
     }
   }
 }

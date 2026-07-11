@@ -1,7 +1,7 @@
 let socket = null;
 let networkPlayers = {};
 let mapObjects = [];
-let networkDecoys = {};
+
 
 function connectSocket() {
   if (socket) return;
@@ -35,8 +35,12 @@ function connectSocket() {
     mapObjects = data;
   });
 
-  socket.on('updateDecoys', (decoys) => {
-    networkDecoys = decoys;
+
+
+  socket.on('updateTexture', (data) => {
+    if (networkPlayers[data.id]) {
+      networkPlayers[data.id].textureData = data.textureData;
+    }
   });
 
   socket.on('gameState', (state) => {

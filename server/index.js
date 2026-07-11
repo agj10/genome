@@ -143,19 +143,44 @@ io.on('connection', (socket) => {
     currentRoomId = roomId;
     const room = getOrCreateRoom(roomId);
 
-    // 해당 방에 플레이어 추가
-    room.players[socket.id] = {
-      userId: socket.user.id,
-      nickname: socket.user.nickname,
-      x: 900 + Math.random() * 200, // 중앙 하단 안전 지대 스폰
-      y: 100 + Math.random() * 100,
-      z: 0,
-      color: '#ffffff',
-      isAlive: true,
-      hp: 100,
-      role: 'hider',
-      textureData: null
-    };
+    let existingPlayerState = null;
+    let oldSocketId = null;
+    for (const sid in room.players) {
+      if (room.players[sid].userId === socket.user.id) {
+        existingPlayerState = room.players[sid];
+        oldSocketId = sid;
+        break;
+      }
+    }
+
+    if (existingPlayerState) {
+      if (existingPlayerState.disconnectTimeout) {
+        clearTimeout(existingPlayerState.disconnectTimeout);
+        delete existingPlayerState.disconnectTimeout;
+      }
+      if (oldSocketId !== socket.id) {
+        room.players[socket.id] = existingPlayerState;
+        delete room.players[oldSocketId];
+        
+        if (room.readyPlayers.has(oldSocketId)) {
+          room.readyPlayers.delete(oldSocketId);
+          room.readyPlayers.add(socket.id);
+        }
+      }
+    } else {
+      room.players[socket.id] = {
+        userId: socket.user.id,
+        nickname: socket.user.nickname,
+        x: 900 + Math.random() * 200,
+        y: 1950 + Math.random() * 20,
+        z: 0,
+        color: '#ffffff',
+        isAlive: true,
+        hp: 100,
+        role: 'hider',
+        textureData: null
+      };
+    }
 
     // 현재 게임 상태 전송
     socket.emit('gameState', {
@@ -175,7 +200,6 @@ io.on('connection', (socket) => {
     });
     // 접속 시 생성되어 있는 맵 오브젝트 정보 전송
     socket.emit('mapData', room.mapObjects);
-    socket.emit('updateDecoys', room.decoys);
     
     io.to(roomId).emit('updatePlayers', room.players);
   });
@@ -215,8 +239,17 @@ io.on('connection', (socket) => {
   socket.on('saveTexture', (textureData) => {
     if (!currentRoomId) return;
     const room = rooms.get(currentRoomId);
-    if (room && room.players[socket.id] && room.status === 'prep') {
+    if (room && room.players[socket.id]) {
       room.players[socket.id].textureData = textureData;
+    }
+  });
+
+  socket.on('updateTexture', (textureData) => {
+    if (!currentRoomId) return;
+    const room = rooms.get(currentRoomId);
+    if (room && room.players[socket.id]) {
+      room.players[socket.id].textureData = textureData;
+      io.to(currentRoomId).emit('updateTexture', { id: socket.id, textureData });
     }
   });
 
@@ -235,31 +268,11 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('addDecoy', (data) => {
-    if (!currentRoomId) return;
-    const room = rooms.get(currentRoomId);
-    if (room) {
-      room.addDecoy(socket.id, data.x, data.y, data.shape, data.textureData);
-    }
-  });
-
-  socket.on('removeDecoys', () => {
-    if (!currentRoomId) return;
-    const room = rooms.get(currentRoomId);
-    if (room) room.removeDecoys(socket.id);
-  });
-
   socket.on('tagPlayer', (data) => {
     if (!currentRoomId) return;
     const room = rooms.get(currentRoomId);
     if (room && data) {
-      if (typeof data === 'string') {
-        // 기존 호환성 유지
-        room.handleTag(socket.id, data, false);
-      } else {
-        // { targetId, isDecoy }
-        room.handleTag(socket.id, data.targetId, data.isDecoy);
-      }
+      room.handleTag(socket.id, data.targetId);
     } else if (room) {
       room.handleMiss(socket.id);
     }
@@ -269,17 +282,19 @@ io.on('connection', (socket) => {
     console.log(`User disconnected: ${socket.user.nickname}`);
     if (currentRoomId) {
       const room = rooms.get(currentRoomId);
-      if (room) {
-        room.removePlayer(socket.id);
-        io.to(currentRoomId).emit('updatePlayers', room.players);
-        room.broadcastState();
-        
-        // 방에 아무도 없으면 삭제
-        if (Object.keys(room.players).length === 0) {
-          if (room.intervalId) clearInterval(room.intervalId);
-          rooms.delete(currentRoomId);
-          console.log(`Room deleted: ${currentRoomId}`);
-        }
+      if (room && room.players[socket.id]) {
+        // 15초 유예 시간 제공
+        room.players[socket.id].disconnectTimeout = setTimeout(() => {
+          room.removePlayer(socket.id);
+          io.to(currentRoomId).emit('updatePlayers', room.players);
+          room.broadcastState();
+          
+          if (Object.keys(room.players).length === 0) {
+            if (room.intervalId) clearInterval(room.intervalId);
+            rooms.delete(currentRoomId);
+            console.log(`Room deleted: ${currentRoomId}`);
+          }
+        }, 15000);
       }
     }
   });
