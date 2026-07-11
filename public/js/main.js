@@ -738,6 +738,7 @@ function render3D() {
       });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.castShadow = true;
+      mesh.receiveShadow = true;
       mesh.userData.shape = pShape;
       scene.add(mesh);
       meshCache[pId] = mesh;
