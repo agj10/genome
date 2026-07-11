@@ -391,12 +391,17 @@ canvas { display: block; }
   border-radius: 5px;
 }
 
-/* ── 하단 바 (드로잉 도구) ── */
+/* ── 우측 바 (드로잉 & 포즈 도구) ── */
 .bottom-bar {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
+  z-index: 20;
 }
 
 .paint-toggle-btn {
@@ -686,5 +691,5 @@ input[type="color"] {
 }
 
 .bottom-bar {
-  animation: slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation: bounceInUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }

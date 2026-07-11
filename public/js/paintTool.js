@@ -23,9 +23,11 @@ class PaintTool {
     this.ctx.lineWidth = 2;
     this.ctx.stroke();
 
-    this.currentTool = 'pen';  // pen | eraser | picker | fill
+    this.currentTool = 'pen';  // pen | eraser | picker
     this.currentColor = '#000000';
-    this.currentSize = 4;
+    this.penSize = 4;
+    this.eraserSize = 10;
+    this.currentSize = this.penSize;
 
     this.isDrawing = false;
     this.lastX = 0;
@@ -37,6 +39,8 @@ class PaintTool {
     this.saveHistory();
 
     this.panelOpen = false;
+    // 임시 스포이드 상태 저장을 위한 변수
+    this.previousTool = null;
 
     this.setupUI();
   }
@@ -45,7 +49,6 @@ class PaintTool {
     this.btnPen     = document.getElementById('tool-pen');
     this.btnEraser  = document.getElementById('tool-eraser');
     this.btnPicker  = document.getElementById('tool-picker');
-    this.btnFill    = document.getElementById('tool-fill');
     this.btnUndo    = document.getElementById('tool-undo');
     this.btnRedo    = document.getElementById('tool-redo');
     this.inputSize  = document.getElementById('tool-size');
@@ -54,13 +57,15 @@ class PaintTool {
     if (this.btnPen)    this.btnPen.addEventListener('click',    () => this.setTool('pen'));
     if (this.btnEraser) this.btnEraser.addEventListener('click', () => this.setTool('eraser'));
     if (this.btnPicker) this.btnPicker.addEventListener('click', () => this.setTool('picker'));
-    if (this.btnFill)   this.btnFill.addEventListener('click',   () => this.setTool('fill'));
     if (this.btnUndo)   this.btnUndo.addEventListener('click',   () => this.undo());
     if (this.btnRedo)   this.btnRedo.addEventListener('click',   () => this.redo());
 
     if (this.inputSize) {
       this.inputSize.addEventListener('input', (e) => {
-        this.currentSize = Number(e.target.value);
+        const val = parseInt(e.target.value);
+        this.currentSize = val;
+        if (this.currentTool === 'pen') this.penSize = val;
+        if (this.currentTool === 'eraser') this.eraserSize = val;
       });
     }
     if (this.inputColor) {
@@ -124,9 +129,11 @@ class PaintTool {
     if (this.panelOpen) {
       panel.classList.add('open');
       if (btn) btn.textContent = '🎨 닫기';
+      this.setTool(this.currentTool); // Restore cursor
     } else {
       panel.classList.remove('open');
       if (btn) btn.textContent = '🎨 그리기';
+      document.body.style.cursor = 'default';
     }
   }
 
@@ -140,10 +147,38 @@ class PaintTool {
 
   setTool(tool) {
     this.currentTool = tool;
-    const btns = { pen: this.btnPen, eraser: this.btnEraser, picker: this.btnPicker, fill: this.btnFill };
+    const btns = { pen: this.btnPen, eraser: this.btnEraser, picker: this.btnPicker };
     for (const [name, btn] of Object.entries(btns)) {
       if (btn) btn.classList.toggle('active', name === tool);
     }
+    
+    // UI 업데이트
+    if (tool === 'pen' || tool === 'eraser') {
+      this.currentSize = tool === 'pen' ? this.penSize : this.eraserSize;
+      if (this.inputSize) this.inputSize.value = this.currentSize;
+      document.body.style.cursor = 'none'; // 브러시 커서를 위해 기본 포인터 숨김
+    } else if (tool === 'picker') {
+      document.body.style.cursor = 'crosshair';
+    } else {
+      document.body.style.cursor = 'default';
+    }
+  }
+
+  switchToolNext(dir) {
+    const tools = ['pen', 'eraser', 'picker'];
+    let idx = tools.indexOf(this.currentTool);
+    if (idx === -1) idx = 0;
+    idx = (idx + dir + tools.length) % tools.length;
+    this.setTool(tools[idx]);
+  }
+
+  adjustSize(delta) {
+    if (this.currentTool !== 'pen' && this.currentTool !== 'eraser') return;
+    this.currentSize += delta;
+    this.currentSize = Math.max(1, Math.min(30, this.currentSize)); // min 1, max 30
+    if (this.currentTool === 'pen') this.penSize = this.currentSize;
+    if (this.currentTool === 'eraser') this.eraserSize = this.currentSize;
+    if (this.inputSize) this.inputSize.value = Math.round(this.currentSize);
   }
 
   // ── History ──

@@ -42,34 +42,66 @@ window.addEventListener('keydown', (e) => {
   handleShortcuts(e);
   if (e.code === 'Space') {
     e.preventDefault();
-    handleJump();
+    if (typeof paintTool !== 'undefined' && paintTool && paintTool.panelOpen && paintTool.currentTool !== 'picker') {
+      paintTool.previousTool = paintTool.currentTool;
+      paintTool.setTool('picker');
+    } else {
+      handleJump();
+    }
   }
 });
 window.addEventListener('keyup', (e) => { 
   input.keys[e.key] = false; 
   input.keys[e.code] = false; 
+  if (e.code === 'Space' && typeof paintTool !== 'undefined' && paintTool && paintTool.panelOpen && paintTool.previousTool) {
+    paintTool.setTool(paintTool.previousTool);
+    paintTool.previousTool = null;
+  }
 });
 window.addEventListener('blur', () => { input.keys = {}; });
 window.addEventListener('resize', resizeCanvas);
 
+let isMiddleMouseDown = false;
 let isRightMouseDown = false;
 let cameraPitchOffset = 0;
 
 window.addEventListener('mousedown', (e) => {
-  if (e.button === 2) {
+  if (e.button === 1) { // 휠(가운데) 클릭
+    isMiddleMouseDown = true;
+    e.preventDefault();
+  }
+  if (e.button === 2) { // 우클릭
     isRightMouseDown = true;
     e.preventDefault();
   }
 });
 window.addEventListener('mouseup', (e) => {
+  if (e.button === 1) isMiddleMouseDown = false;
   if (e.button === 2) isRightMouseDown = false;
 });
 window.addEventListener('mousemove', (e) => {
-  if (isRightMouseDown) {
+  if (isMiddleMouseDown) {
     cameraPitchOffset += e.movementY * 1.5;
+  }
+  if (isRightMouseDown && paintTool && paintTool.panelOpen) {
+    // 마우스 이동 반경만큼 굵기 조절
+    const delta = e.movementX + e.movementY;
+    paintTool.adjustSize(delta * 0.5);
   }
 });
 window.addEventListener('contextmenu', e => e.preventDefault());
+
+window.addEventListener('wheel', (e) => {
+  // 그리기 패널이 열려있을 때 휠 굴림 감지
+  if (paintTool && paintTool.panelOpen) {
+    e.preventDefault();
+    paintTool.switchToolNext(e.deltaY > 0 ? 1 : -1);
+  } else {
+    // 줌 처리
+    targetZoom += (e.deltaY > 0 ? 50 : -50);
+    targetZoom = Math.max(300, Math.min(1500, targetZoom));
+  }
+}, { passive: false });
 
 function handleShortcuts(e) {
   if (e.code === 'KeyF' && paintTool) paintTool.togglePanel();
@@ -132,11 +164,6 @@ canvas.addEventListener('mouseleave', () => { pointer.isDown = false; onPointerU
 
 // 카메라 줌 대체 (FOV 또는 카메라 거리 조절)
 let targetZoom = 600;
-canvas.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  targetZoom += e.deltaY * 0.5;
-  targetZoom = Math.max(300, Math.min(targetZoom, 1500));
-}, { passive: false });
 
 function resizeCanvas() {
   canvas.width = window.innerWidth;
@@ -365,6 +392,9 @@ function startGame() {
   localPlayer.z = 0;
   localPlayer.vz = 0;
   window.localPlayer = localPlayer;
+  
+  // 카메라 초기 위치를 높고 먼 곳으로 설정하여 부드러운 시작 연출 (Lerp)
+  camera.position.set(localPlayer.x, 3000, localPlayer.y + 3000);
 
   paintTool = new PaintTool(64);
   window.paintTool = paintTool;
@@ -959,6 +989,71 @@ function renderOverlay() {
 
   // 아나운서
   announcer.render(ctx2d, W, H);
+
+  // 그리기 커서 및 스포이드 돋보기
+  if (typeof paintTool !== 'undefined' && paintTool && paintTool.panelOpen) {
+    const mx = pointer.x;
+    const my = pointer.y;
+    
+    if (paintTool.currentTool === 'picker') {
+      // 돋보기 렌더링
+      const mSize = 80; // 돋보기 지름
+      const zoom = 2; // 확대 배율
+      ctx2d.save();
+      ctx2d.beginPath();
+      ctx2d.arc(mx, my, mSize/2, 0, Math.PI * 2);
+      ctx2d.closePath();
+      ctx2d.clip();
+      
+      // renderer.domElement에서 WebGL 내용 캡처
+      const canvasWebgl = renderer.domElement;
+      const dpr = window.devicePixelRatio || 1;
+      const srcW = (mSize / zoom) * dpr;
+      const srcH = (mSize / zoom) * dpr;
+      const srcX = (mx - (mSize / zoom) / 2) * dpr;
+      const srcY = (my - (mSize / zoom) / 2) * dpr;
+      
+      try {
+        ctx2d.drawImage(canvasWebgl, srcX, srcY, srcW, srcH, mx - mSize/2, my - mSize/2, mSize, mSize);
+      } catch (e) { } // Safari 등에서 간혹 발생할 수 있는 오류 무시
+      
+      // 십자선
+      ctx2d.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx2d.lineWidth = 1;
+      ctx2d.beginPath();
+      ctx2d.moveTo(mx - 5, my);
+      ctx2d.lineTo(mx + 5, my);
+      ctx2d.moveTo(mx, my - 5);
+      ctx2d.lineTo(mx, my + 5);
+      ctx2d.stroke();
+      
+      // 테두리
+      ctx2d.strokeStyle = '#000';
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath();
+      ctx2d.arc(mx, my, mSize/2, 0, Math.PI*2);
+      ctx2d.stroke();
+      ctx2d.restore();
+    } else {
+      // 브러시 원 렌더링
+      const baseBrushSize = paintTool.currentSize;
+      const zoomFactor = 600 / targetZoom; // 화면 줌 비율
+      const cursorRadius = Math.max(1, (baseBrushSize * 2) * zoomFactor);
+      
+      ctx2d.save();
+      ctx2d.beginPath();
+      ctx2d.arc(mx, my, cursorRadius, 0, Math.PI * 2);
+      ctx2d.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx2d.lineWidth = 1.5;
+      ctx2d.stroke();
+      ctx2d.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx2d.lineWidth = 1;
+      ctx2d.beginPath();
+      ctx2d.arc(mx, my, cursorRadius - 1, 0, Math.PI * 2);
+      ctx2d.stroke();
+      ctx2d.restore();
+    }
+  }
 }
 
 // ────────────────────────────────────

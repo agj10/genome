@@ -47,10 +47,14 @@ app.get('/api/quick-room', (req, res) => {
   if (bestRoom) {
     res.json({ roomId: bestRoom });
   } else {
-    // 없으면 새 방 생성용 랜덤 코드 반환 (사실상 Create Room 역할 병행)
+    // 없으면 새 방 생성용 랜덤 코드 생성 후 실제 방(GameRoom) 생성
     const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let r = '';
     for (let i = 0; i < 6; i++) r += c[Math.floor(Math.random() * c.length)];
+    const room = new GameRoom(io, r);
+    room.setPlayersReference({});
+    rooms.set(r, room);
+    console.log(`Room created via Quick Start: ${r}`);
     res.json({ roomId: r, isNew: true });
   }
 });
@@ -102,14 +106,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_local_dev';
 // 서버 상태
 const rooms = new Map();
 
-function getOrCreateRoom(roomId) {
-  if (!rooms.has(roomId)) {
-    const room = new GameRoom(io, roomId);
-    // 각 방마다 players 객체 독립적으로 생성
-    room.setPlayersReference({});
-    rooms.set(roomId, room);
-    console.log(`Room created: ${roomId}`);
-  }
+function getRoom(roomId) {
   return rooms.get(roomId);
 }
 
@@ -130,6 +127,12 @@ io.on('connection', (socket) => {
   let currentRoomId = null;
 
   socket.on('joinRoom', (roomId) => {
+    const room = getRoom(roomId);
+    if (!room) {
+      socket.emit('roomNotFound');
+      return;
+    }
+
     if (currentRoomId) {
       socket.leave(currentRoomId);
       const oldRoom = rooms.get(currentRoomId);
@@ -141,7 +144,6 @@ io.on('connection', (socket) => {
 
     socket.join(roomId);
     currentRoomId = roomId;
-    const room = getOrCreateRoom(roomId);
 
     let existingPlayerState = null;
     let oldSocketId = null;

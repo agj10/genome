@@ -31,6 +31,11 @@ function connectSocket() {
     networkPlayers = serverPlayers;
   });
 
+  socket.on('roomNotFound', () => {
+    alert('존재하지 않는 방입니다.');
+    window.location.href = '/';
+  });
+
   socket.on('mapData', (data) => {
     mapObjects = data;
   });

@@ -99,24 +99,24 @@ class GameStateManager {
     const paintToggle = document.getElementById('paint-toggle');
     const poseToggle = document.getElementById('pose-toggle');
 
-    if (displayStatus === 'prep') {
-      if (paintToggle) paintToggle.style.display = 'inline-block';
-      // 자동 열기
-      if (this._prevStatus !== 'prep' && typeof paintTool !== 'undefined' && paintTool && !this.uiDelayed) {
-        paintTool.openPanel();
-      }
-    } else {
-      if (paintToggle) paintToggle.style.display = 'none';
-      if (typeof paintTool !== 'undefined' && paintTool) {
-        paintTool.closePanel();
-      }
-    }
-
-    // 포즈 버튼은 로비, 준비, 사냥 모든 단계에서 표시
     if (displayStatus === 'lobby' || displayStatus === 'prep' || displayStatus === 'hunt') {
+      if (paintToggle) paintToggle.style.display = 'inline-block';
       if (poseToggle) poseToggle.style.display = 'inline-block';
     } else {
+      if (paintToggle) paintToggle.style.display = 'none';
       if (poseToggle) poseToggle.style.display = 'none';
+      if (typeof paintTool !== 'undefined' && paintTool) paintTool.closePanel();
+    }
+
+    // 로비 -> prep (게임 시작) 전환 시 자동 열기 및 초기화
+    if (this._prevStatus === 'lobby' && displayStatus === 'prep') {
+      if (typeof paintTool !== 'undefined' && paintTool && !this.uiDelayed) {
+        paintTool.clearCanvas(); // 그림 초기화
+        paintTool.openPanel();
+      }
+      if (socket && socket.connected) {
+        socket.emit('changePose', 'idle'); // 포즈 초기화
+      }
     }
   }
 
