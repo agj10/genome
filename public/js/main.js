@@ -147,6 +147,8 @@ function init3D() {
   dirLight.shadow.camera.right = d;
   dirLight.shadow.camera.top = d;
   dirLight.shadow.camera.bottom = -d;
+  dirLight.shadow.bias = -0.0005;
+  dirLight.shadow.normalBias = 0.02;
   scene.add(dirLight);
 
   // 태양 형상 (직사광 위치에 배치)
