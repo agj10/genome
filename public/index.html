@@ -254,9 +254,11 @@
         </div>
       </div>
 
-      <!-- 하단 드로잉 패널 (토글) -->
+      <!-- 하단 드로잉/포즈 패널 -->
       <div class="bottom-bar">
         <button id="paint-toggle" class="paint-toggle-btn" style="display: none;">🎨 그리기</button>
+        <button id="pose-toggle" class="paint-toggle-btn" style="display: none; margin-left: 10px;">🕺 포즈</button>
+        
         <div id="paint-panel" class="paint-panel">
           <div class="tools-row">
             <button id="tool-pen" class="tool-btn active" title="펜">✏️</button>
@@ -269,6 +271,16 @@
           <div class="tools-row">
             <input type="range" id="tool-size" min="1" max="30" value="4" title="굵기 조절">
             <input type="color" id="tool-color" value="#000000" title="색상 선택">
+          </div>
+        </div>
+
+        <div id="pose-panel" class="paint-panel">
+          <div class="tools-row">
+            <button class="pose-btn" data-pose="idle" title="기본">🧍</button>
+            <button class="pose-btn" data-pose="sit" title="앉기">🧎</button>
+            <button class="pose-btn" data-pose="lie" title="눕기">🛌</button>
+            <button class="pose-btn" data-pose="dance" title="춤추기">🕺</button>
+            <button class="pose-btn" data-pose="hide" title="숨기">📦</button>
           </div>
         </div>
       </div>

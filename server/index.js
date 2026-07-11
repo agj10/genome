@@ -20,7 +20,7 @@ const io = new Server(server, {
 // 미들웨어
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, '../public')));
 
 // API 라우트
 app.use('/api/auth', authRoutes);

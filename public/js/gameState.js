@@ -97,6 +97,8 @@ class GameStateManager {
 
     // ── 페인트 도구 토글 버튼 ──
     const paintToggle = document.getElementById('paint-toggle');
+    const poseToggle = document.getElementById('pose-toggle');
+
     if (displayStatus === 'prep') {
       if (paintToggle) paintToggle.style.display = 'inline-block';
       // 자동 열기
@@ -108,6 +110,13 @@ class GameStateManager {
       if (typeof paintTool !== 'undefined' && paintTool) {
         paintTool.closePanel();
       }
+    }
+
+    // 포즈 버튼은 로비, 준비, 사냥 모든 단계에서 표시
+    if (displayStatus === 'lobby' || displayStatus === 'prep' || displayStatus === 'hunt') {
+      if (poseToggle) poseToggle.style.display = 'inline-block';
+    } else {
+      if (poseToggle) poseToggle.style.display = 'none';
     }
   }
 

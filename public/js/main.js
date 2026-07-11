@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RGBShiftShader } from 'three/addons/shaders/RGBShiftShader.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 
 // ────────────────────────────────────
 // main.js — Three.js 3D 렌더링 엔진 & Phase 5
@@ -72,7 +73,41 @@ window.addEventListener('contextmenu', e => e.preventDefault());
 
 function handleShortcuts(e) {
   if (e.code === 'KeyF' && paintTool) paintTool.togglePanel();
+  if (e.code === 'KeyG') {
+    const panel = document.getElementById('pose-panel');
+    const btn = document.getElementById('pose-toggle');
+    if (panel) {
+      const isOpen = panel.classList.contains('open');
+      if (isOpen) {
+        panel.classList.remove('open');
+        if (btn) btn.textContent = '🕺 포즈';
+      } else {
+        panel.classList.add('open');
+        if (btn) btn.textContent = '🕺 닫기';
+      }
+    }
+  }
 }
+
+// 포즈 버튼 클릭 이벤트 리스너 추가
+document.addEventListener('DOMContentLoaded', () => {
+  const poseToggle = document.getElementById('pose-toggle');
+  if (poseToggle) {
+    poseToggle.addEventListener('click', () => {
+      handleShortcuts({ code: 'KeyG' });
+    });
+  }
+  
+  const poseBtns = document.querySelectorAll('.pose-btn');
+  poseBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pose = btn.dataset.pose;
+      if (socket && socket.connected) {
+        socket.emit('changePose', pose);
+      }
+    });
+  });
+});
 
 function handleJump() {
   if (localPlayer && localPlayer.vz === 0) {
@@ -269,8 +304,8 @@ function init3D() {
   // 3. Bokeh (피사계 심도)
   bokehPass = new BokehPass(scene, camera, {
     focus: 1.0,
-    aperture: 0.00001, // 조리개를 조여서(낮춰서) 초점이 맞는 구간(심도)을 넓힘
-    maxblur: 0.012,    // 대신 완전히 벗어난 먼 거리의 블러 강도는 높임 (대비 증가)
+    aperture: 0.000005, // 조리개를 더 조여서 초점이 맞는 구간을 넓힘 (대비가 강한 블러)
+    maxblur: 0.02,    // 완전히 벗어난 먼 거리의 블러 강도는 높임
     width: window.innerWidth,
     height: window.innerHeight
   });
@@ -280,6 +315,13 @@ function init3D() {
   rgbShiftPass = new ShaderPass(RGBShiftShader);
   rgbShiftPass.uniforms['amount'].value = 0.0;
   composer.addPass(rgbShiftPass);
+
+  // 5. FXAA (안티앨리어싱)
+  const fxaaPass = new ShaderPass(FXAAShader);
+  const pixelRatio = renderer.getPixelRatio();
+  fxaaPass.material.uniforms['resolution'].value.x = 1 / (window.innerWidth * pixelRatio);
+  fxaaPass.material.uniforms['resolution'].value.y = 1 / (window.innerHeight * pixelRatio);
+  composer.addPass(fxaaPass);
 }
 
 // ────────────────────────────────────
@@ -531,37 +573,41 @@ function gameLoop(time) {
 
 function update(dt) {
   if (localPlayer) {
-    const oldX = localPlayer.x;
-    const oldY = localPlayer.y;
+    const steps = 5;
+    const dtStep = dt / steps;
 
-    localPlayer.update(dt, input);
-    
-    const r = localPlayer.radius || 26;
-    
-    if (mapObjects) {
-      for (const obj of mapObjects) {
-        if (localPlayer.z < obj.height) {
-          const halfSize = obj.size / 2;
-          const left = obj.x - halfSize;
-          const right = obj.x + halfSize;
-          const top = obj.y - 0.1;
-          const bottom = obj.y + 0.1;
-          
-          // Y축 두께를 5로 주어 얇지만 투과되지 않도록 방지
-          if (localPlayer.x + r > left && localPlayer.x - r < right &&
-              Math.abs(localPlayer.y - obj.y) < 5) {
+    for (let s = 0; s < steps; s++) {
+      const oldX = localPlayer.x;
+      const oldY = localPlayer.y;
+
+      localPlayer.update(dtStep, input);
+      
+      const r = localPlayer.radius || 26;
+      
+      if (mapObjects) {
+        for (const obj of mapObjects) {
+          if (localPlayer.z < obj.height) {
+            const halfSize = obj.size / 2;
+            const left = obj.x - halfSize;
+            const right = obj.x + halfSize;
             
-            if (oldX + r <= left || oldX - r >= right) localPlayer.x = oldX;
-            if (Math.abs(oldY - obj.y) >= 5) localPlayer.y = oldY;
+            // 충돌 판정 개선: obj.y는 박스의 중심(선형 벽의 중심 Y)이고 두께를 5로 주었습니다.
+            // 플레이어 중심 반경 r을 고려해 Y축 충돌 두께를 약간 더 넓게 허용합니다.
+            if (localPlayer.x + r > left && localPlayer.x - r < right &&
+                Math.abs(localPlayer.y - obj.y) < (5 + r/2)) {
+              
+              if (oldX + r <= left || oldX - r >= right) localPlayer.x = oldX;
+              if (Math.abs(oldY - obj.y) >= (5 + r/2)) localPlayer.y = oldY;
+            }
           }
         }
       }
-    }
 
-    if (localPlayer.x < r) localPlayer.x = r;
-    if (localPlayer.x > MAP.width - r) localPlayer.x = MAP.width - r;
-    if (localPlayer.y < r) localPlayer.y = r;
-    if (localPlayer.y > MAP.height - r) localPlayer.y = MAP.height - r;
+      if (localPlayer.x < r) localPlayer.x = r;
+      if (localPlayer.x > MAP.width - r) localPlayer.x = MAP.width - r;
+      if (localPlayer.y < r) localPlayer.y = r;
+      if (localPlayer.y > MAP.height - r) localPlayer.y = MAP.height - r;
+    }
 
     const gravity = -900;
     localPlayer.vz += gravity * dt;
@@ -773,6 +819,9 @@ function render3D() {
       });
     }
 
+    // 카메라 방향으로 항상 바라보도록(빌보드)
+    mesh.quaternion.copy(camera.quaternion);
+
     // 사망 처리 시각화 (색상 어둡게 또는 투명도)
     if (!p.isAlive) {
       mesh.material.color.setHex(0x555555);
@@ -790,10 +839,26 @@ function render3D() {
     }
   }
 
-  // 초점 거리 조절 (피사계 심도)
+  // 조명 업데이트
   if (localPlayer) {
     const dist = camera.position.distanceTo(meshCache[myId]?.position || new THREE.Vector3(localPlayer.x, localPlayer.z, localPlayer.y));
     bokehPass.uniforms['focus'].value = dist;
+    
+    // 시야 제한 로직
+    const me = networkPlayers[myId];
+    if (me && me.role === 'seeker' && gameStateManager.status === 'hunt') {
+      const sightRange = 300;
+      for (const pId in networkPlayers) {
+        if (pId === myId) continue;
+        const p = networkPlayers[pId];
+        const d = new THREE.Vector2(localPlayer.x - p.x, localPlayer.y - p.y).length();
+        if (meshCache[pId]) meshCache[pId].visible = d < sightRange;
+      }
+    } else {
+      for (const id in meshCache) {
+        meshCache[id].visible = true;
+      }
+    }
   }
 
   // 색 수차 조절 (술래와의 거리)
@@ -828,10 +893,8 @@ function render3D() {
 // 2D 오버레이 렌더링 (이름표 등)
 // ────────────────────────────────────
 function renderOverlay() {
-  const W = canvas.width, H = canvas.height;
+  const W = window.innerWidth, H = window.innerHeight;
   const ctx2d = announcer.ctx || (() => {
-    // Announcer가 ctx를 필요로 하므로, 2D 캔버스를 화면 위에 하나 띄워야 함
-    // Three.js WebGL 위에 투명한 2D 캔버스 생성
     let c = document.getElementById('ui-canvas');
     if (!c) {
       c = document.createElement('canvas');
@@ -839,14 +902,20 @@ function renderOverlay() {
       c.style.position = 'absolute';
       c.style.top = '0';
       c.style.left = '0';
+      c.style.width = '100%';
+      c.style.height = '100%';
       c.style.pointerEvents = 'none';
       c.style.zIndex = '10';
       document.getElementById('game-screen').appendChild(c);
     }
-    c.width = window.innerWidth;
-    c.height = window.innerHeight;
     return c.getContext('2d');
   })();
+  
+  const uiCanvas = document.getElementById('ui-canvas');
+  if (uiCanvas) {
+    if (uiCanvas.width !== W) uiCanvas.width = W;
+    if (uiCanvas.height !== H) uiCanvas.height = H;
+  }
 
   ctx2d.clearRect(0, 0, W, H);
   
@@ -864,13 +933,15 @@ function renderOverlay() {
 
     const mesh = meshCache[pId];
     const pos = mesh.position.clone();
-    pos.y += 40; // 머리 위로 이동
     
     // 3D 공간 -> 2D 스크린 투영
     pos.project(camera);
     
     const x = (pos.x * 0.5 + 0.5) * W;
-    const y = (pos.y * -0.5 + 0.5) * H;
+    let y = (pos.y * -0.5 + 0.5) * H;
+    
+    // 화면상에서 머리 위로 고정된 픽셀만큼 오프셋 적용
+    y -= 50; 
     
     if (pos.z > 1) continue; // 카메라 뒤에 있는 경우
 
@@ -913,14 +984,15 @@ function onPointerDown(e) {
   const me = networkPlayers[socket.id];
   if (!me) return;
 
-  if (gameStateManager.status === 'hunt' && me.role === 'seeker') {
-    attemptTag3D(e.clientX, e.clientY);
-  } else if (me.role === 'hider' && paintTool) {
+  // 페인트 패널이 열려있으면 내 캐릭터에 그리기 최우선
+  if (paintTool && paintTool.panelOpen) {
     const uv = getPointerIntersection(e.clientX, e.clientY);
     if (uv) {
       paintTool.isDrawing3D = true;
       paintTool.onPointerDown({ clientX: uv.x * paintTool.canvas.width, clientY: (1 - uv.y) * paintTool.canvas.height, isSimulated: true });
     }
+  } else if (gameStateManager.status === 'hunt' && me.role === 'seeker') {
+    attemptTag3D(e.clientX, e.clientY);
   }
 }
 
